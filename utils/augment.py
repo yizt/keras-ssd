@@ -124,6 +124,12 @@ class Translate:
         self.background = background
 
     def __call__(self, image, gt_boxes=None):
+        """
+
+        :param image: [H,W,3]
+        :param gt_boxes: GT boxes [N,(y1,x1,y2,x2)]
+        :return:
+        """
 
         img_height, img_width = image.shape[:2]
 
@@ -141,11 +147,72 @@ class Translate:
 
         if gt_boxes is None:
             return image
-        
+
         # 边框坐标对应平移
         boxes = np.copy(gt_boxes)
         boxes[:, [1, 3]] += dx_abs
         boxes[:, [0, 2]] += dy_abs
+
+        if self.clip_boxes:
+            boxes[:, [1, 3]] = np.clip(boxes[:, [1, 3]], a_min=0, a_max=img_width)
+            boxes[:, [0, 2]] = np.clip(boxes[:, [0, 2]], a_min=0, a_max=img_height)
+
+        return image, boxes
+
+
+class Scale:
+    """
+    缩放图像,图像尺寸不变,镜头拉近、拉远
+    """
+
+    def __init__(self,
+                 factor,
+                 clip_boxes=True,
+                 background=(0, 0, 0)):
+        """
+
+        :param factor: 大于1拉近距离放大图像;小于1拉远距离缩小图像
+        :param clip_boxes: 裁剪边框到图像内
+        :param background:
+        """
+
+        self.factor = factor
+        self.clip_boxes = clip_boxes
+        self.background = background
+
+    def __call__(self, image, gt_boxes=None):
+        """
+
+        :param image: [H,W,3]
+        :param gt_boxes: GT boxes [N,(y1,x1,y2,x2)]
+        :return:
+        """
+
+        img_height, img_width = image.shape[:2]
+
+        matrix = cv2.getRotationMatrix2D(center=(img_width / 2, img_height / 2),
+                                         angle=0,
+                                         scale=self.factor)
+        # 缩放图像
+        image = cv2.warpAffine(image,
+                               M=matrix,
+                               dsize=(img_width, img_height),
+                               borderMode=cv2.BORDER_CONSTANT,
+                               borderValue=self.background)
+
+        if gt_boxes is None:
+            return image
+
+        boxes = gt_boxes.copy()
+
+        # 计算缩放后，左上右下两点坐标  [2,3]*[(x,y,1),N]=>[(x,y),N]
+        top_left = np.array([boxes[:, 1], boxes[:, 0], np.ones(boxes.shape[0])])  # [(x,y,1),N]
+        bottom_right = np.array([boxes[:, 3], boxes[:, 2], np.ones(boxes.shape[0])])  # [(x,y,1),N]
+        new_top_left = (np.dot(matrix, top_left)).T  # [N,(x,y)]
+        new_bottom_right = (np.dot(matrix, bottom_right)).T  # [N,(x,y)]
+
+        boxes[:, [1, 0]] = new_top_left
+        boxes[:, [3, 2]] = new_bottom_right
 
         if self.clip_boxes:
             boxes[:, [1, 3]] = np.clip(boxes[:, [1, 3]], a_min=0, a_max=img_width)
