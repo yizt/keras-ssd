@@ -244,13 +244,17 @@ class Rotate(object):
         mask = np.zeros(shape=(height, width, num_boxes), dtype=np.uint8)
         for i, box in enumerate(gt_boxes):
             y1, x1, y2, x2 = box
-            y1, x1, y2, x2 = int(np.floor(y1)), int(np.ceil(y2)), int(np.floor(x1)), int(np.ceil(x2))
+            # float 转 int
+            y1, y2 = int(np.floor(y1)), int(np.ceil(y2))
+            x1, x2 = int(np.floor(x1)), int(np.ceil(x2))
             mask[y1:y2, x1:x2, i] = 1
 
         # mask做仿射变换
         new_mask = cv2.warpAffine(mask,
                                   M=matrix,
-                                  dsize=(width, height))
+                                  dsize=(width, height),
+                                  borderMode=cv2.BORDER_CONSTANT,
+                                  borderValue=(0, 0, 0))
         new_mask = new_mask.astype(np.uint8)
 
         # 根据变换后的mask值获取新的gt box坐标
