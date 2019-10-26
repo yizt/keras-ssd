@@ -42,8 +42,8 @@ class Resize(object):
             return image
 
         boxes = gt_boxes.copy()
-        boxes[:, [0, 2]] = np.round(boxes[:, [0, 2]] * (self.out_height / img_height), decimals=0)
-        boxes[:, [1, 3]] = np.round(boxes[:, [1, 3]] * (self.out_width / img_width), decimals=0)
+        boxes[:, [0, 2]] = boxes[:, [0, 2]] * (self.out_height / img_height)
+        boxes[:, [1, 3]] = boxes[:, [1, 3]] * (self.out_width / img_width)
         return image, boxes
 
 
@@ -102,3 +102,53 @@ class VerticalFlip(Flip):
 
     def __init__(self):
         super(VerticalFlip, self).__init__(dim='vertical')
+
+
+class Translate:
+    """
+    平移图像
+    """
+
+    def __init__(self, dy, dx, clip_boxes=True, background=(0, 0, 0)):
+        """
+        
+        :param dy: 高度方向移动因子
+        :param dx: 宽度方向移动因子
+        :param clip_boxes: 裁剪边框到图像内
+        :param background: 填充色
+        """
+
+        self.dy_rel = dy
+        self.dx_rel = dx
+        self.clip_boxes = clip_boxes
+        self.background = background
+
+    def __call__(self, image, gt_boxes=None):
+
+        img_height, img_width = image.shape[:2]
+
+        dy_abs = img_height * self.dy_rel
+        dx_abs = img_width * self.dx_rel
+        matrix = np.float32([[1, 0, dx_abs],
+                             [0, 1, dy_abs]])
+
+        # 平移图像
+        image = cv2.warpAffine(image,
+                               M=matrix,
+                               dsize=(img_width, img_height),
+                               borderMode=cv2.BORDER_CONSTANT,
+                               borderValue=self.background)
+
+        if gt_boxes is None:
+            return image
+        
+        # 边框坐标对应平移
+        boxes = np.copy(gt_boxes)
+        boxes[:, [1, 3]] += dx_abs
+        boxes[:, [0, 2]] += dy_abs
+
+        if self.clip_boxes:
+            boxes[:, [1, 3]] = np.clip(boxes[:, [1, 3]], a_min=0, a_max=img_width)
+            boxes[:, [0, 2]] = np.clip(boxes[:, [0, 2]], a_min=0, a_max=img_height)
+
+        return image, boxes
