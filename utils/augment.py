@@ -104,7 +104,7 @@ class VerticalFlip(Flip):
         super(VerticalFlip, self).__init__(dim='vertical')
 
 
-class Translate:
+class Translate(object):
     """
     平移图像
     """
@@ -160,7 +160,7 @@ class Translate:
         return image, boxes
 
 
-class Scale:
+class Scale(object):
     """
     缩放图像,图像尺寸不变,镜头拉近、拉远
     """
@@ -217,5 +217,71 @@ class Scale:
         if self.clip_boxes:
             boxes[:, [1, 3]] = np.clip(boxes[:, [1, 3]], a_min=0, a_max=img_width)
             boxes[:, [0, 2]] = np.clip(boxes[:, [0, 2]], a_min=0, a_max=img_height)
+
+        return image, boxes
+
+
+class Rotate(object):
+    """
+    旋转图像
+    """
+
+    def __init__(self, angle):
+        self.angle = angle
+
+    @classmethod
+    def get_new_boxes(cls, height, width, gt_boxes, matrix):
+        """
+
+        :param height:
+        :param width:
+        :param gt_boxes:
+        :param matrix:
+        :return:
+        """
+        num_boxes = len(gt_boxes)
+        # 每个通道代表一个gt box的mask
+        mask = np.zeros(shape=(height, width, num_boxes), dtype=np.uint8)
+        for i, box in enumerate(gt_boxes):
+            y1, x1, y2, x2 = box
+            y1, x1, y2, x2 = int(np.floor(y1)), int(np.ceil(y2)), int(np.floor(x1)), int(np.ceil(x2))
+            mask[y1:y2, x1:x2, i] = 1
+
+        # mask做仿射变换
+        new_mask = cv2.warpAffine(mask,
+                                  M=matrix,
+                                  dsize=(width, height))
+        new_mask = new_mask.astype(np.uint8)
+
+        # 根据变换后的mask值获取新的gt box坐标
+        new_gt_boxes = np.zeros_like(gt_boxes)
+        for i in range(num_boxes):
+            hs, ws = np.where(new_mask[:, :, i] == 1)
+            y1, x1, y2, x2 = 0, 0, 0, 0
+            if len(hs) > 0:
+                y1, y2 = np.min(hs), np.max(hs)
+            if len(ws) > 0:
+                x1, x2 = np.min(ws), np.max(ws)
+            new_gt_boxes[i] = np.array([y1, x1, y2, x2])
+
+        return new_gt_boxes
+
+    def __call__(self, image, gt_boxes=None):
+        img_height, img_width = image.shape[:2]
+
+        matrix = cv2.getRotationMatrix2D(center=(img_width / 2, img_height / 2),
+                                         angle=self.angle,
+                                         scale=1)
+
+        # 旋转图像
+        image = cv2.warpAffine(image,
+                               M=matrix,
+                               dsize=(img_width, img_height))
+
+        if gt_boxes is None:
+            return image
+
+        boxes = gt_boxes.copy()
+        boxes = self.get_new_boxes(img_height, img_width, boxes, matrix)
 
         return image, boxes
