@@ -6,12 +6,14 @@
  @Description    :
 """
 import cv2
+import numpy as np
 
 
 class ConvertColor(object):
     """
     色彩空间转换
     """
+
     def __init__(self, current, transform):
         self.transform = transform
         self.current = current
@@ -38,28 +40,20 @@ class ConvertColor(object):
             raise NotImplementedError
         return image, gt_boxes, labels
 
-class Saturation:
-    '''
-    Changes the saturation of HSV images.
 
-    Important:
-        - Expects HSV input.
-        - Expects input array to be of `dtype` `float`.
-    '''
+class Saturation(object):
+    """
+    改变HSV图像的饱和度
+    """
 
     def __init__(self, factor):
-        '''
-        Arguments:
-            factor (float): A float greater than zero that determines saturation change, where
-                values less than one result in less saturation and values greater than one result
-                in more saturation.
-        '''
-        if factor <= 0.0: raise ValueError("It must be `factor > 0`.")
+        if factor <= 0.0:
+            raise ValueError("It must be `factor > 0`.")
         self.factor = factor
 
-    def __call__(self, image, labels=None):
+    def __call__(self, image, gt_boxes=None, labels=None):
         image[:, :, 1] = np.clip(image[:, :, 1] * self.factor, 0, 255)
-        if labels is None:
+        if gt_boxes is None:
             return image
         else:
-            return image, labels
+            return image, gt_boxes, labels
