@@ -8,6 +8,7 @@
 import cv2
 import numpy as np
 from utils import box_utils
+import random
 
 
 def center_filter(gt_boxes, rect):
@@ -22,9 +23,9 @@ def center_filter(gt_boxes, rect):
     ctr_y = np.sum(gt_boxes[:, [0, 2]], axis=1) / 2.  # [N]
     y1, x1, y2, x2 = rect  # 矩形框坐标
 
-    keep = np.logical_and(np.logical_and(np.logical_and(ctr_x >= x1, ctr_x <= x2),
-                                         ctr_y >= y1),
-                          ctr_y <= y2)
+    keep = np.logical_and(np.logical_and(np.logical_and(ctr_x >= x1 + 1, ctr_x <= x2 - 1),
+                                         ctr_y >= y1 + 1),
+                          ctr_y <= y2 - 1)
     return keep
 
 
@@ -345,3 +346,87 @@ class Rotate(object):
         labels = labels[keep]
 
         return image, boxes, labels
+
+
+class RandomSampleCrop(object):
+    def __init__(self, ar_range=(1 / 2, 2), min_size=0.3, max_tries=50, clip_boxes=True):
+        """
+
+        :param ar_range:
+        :param min_size:
+        """
+        self.min_aspect_ratio = ar_range[0]
+        self.max_aspect_ratio = ar_range[1]
+        self.min_size = min_size
+        self.max_tries = max_tries
+        self.clip_boxes = clip_boxes
+        self.sample_options = (
+            1.,  # 返回原图
+            0.1, 0.3, 0.5, 0.7, 0.9,  # iou最小值
+            0.  # 随机裁剪
+        )
+
+    def __call__(self, image, gt_boxes=None, labels=None):
+        img_height, img_width = image.shape[:2]
+        while True:
+            # 随机选择一种模式
+            mode = random.choice(self.sample_options)
+            # 返回原图
+            if mode == 1:
+                return image, gt_boxes, labels
+
+            min_iou = mode
+            # 最多尝试次数
+            for _ in range(self.max_tries):
+                cur_image = image
+                # 采样裁剪后图像长宽
+                w = random.uniform(self.min_size * img_width, img_width)
+                h = random.uniform(self.min_size * img_height, img_height)
+
+                # 长宽比是否满足要求
+                if h / w < self.min_aspect_ratio or h / w > self.max_aspect_ratio:
+                    continue
+
+                # 采样裁剪后图像左上顶点坐标
+                left = random.uniform(0, img_width - w)
+                top = random.uniform(0, img_height - h)
+                rect = np.array([int(left), int(top), int(left + w), int(top + h)])
+                y1, x1, y2, x2 = rect
+                cur_image = cur_image[y1:y2, x1:x2]
+
+                # 如果没有GT Boxes;直接返回裁剪后的图像
+                if gt_boxes is None or len(gt_boxes) == 0:
+                    return cur_image, gt_boxes, labels
+
+                boxes = gt_boxes.copy()
+                cur_labels = labels
+
+                # 过滤中心点不在图像内的边框
+                keep = center_filter(boxes, rect)
+                boxes = boxes[keep]
+                cur_labels = cur_labels[keep]
+
+                # 没有gt boxes,重新
+                if len(boxes) == 0:
+                    continue
+
+                # 计算iou
+                keep = iou_filter(boxes, rect, min_iou=min_iou)
+
+                # 最小iou不满足条件，重来
+                if not np.all(keep):
+                    continue
+
+                boxes = boxes[keep]
+                cur_labels = cur_labels[keep]
+
+                # 裁剪gt boxes 到图像内
+                if self.clip_boxes:
+                    boxes[:, [1, 3]] = np.clip(boxes[:, [1, 3]], a_min=x1, a_max=x2)
+                    boxes[:, [0, 2]] = np.clip(boxes[:, [0, 2]], a_min=y1, a_max=y2)
+
+                # 平移boxes
+                boxes[:, [1, 3]] -= x1
+                boxes[:, [0, 2]] -= y1
+
+                return cur_image, boxes, cur_labels
