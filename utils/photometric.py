@@ -144,3 +144,16 @@ class HistogramEqualization:
     def __call__(self, image, gt_boxes=None, labels=None):
         image[:, :, 2] = cv2.equalizeHist(image[:, :, 2])
         return Identity()(image, gt_boxes, labels)
+
+
+class ChannelSwap:
+    """
+    通道交换
+    """
+
+    def __init__(self, order):
+        self.order = order
+
+    def __call__(self, image, gt_boxes=None, labels=None):
+        image = image[:, :, self.order]
+        return Identity()(image, gt_boxes, labels)
