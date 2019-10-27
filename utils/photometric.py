@@ -114,3 +114,20 @@ class Hue(object):
     def __call__(self, image, gt_boxes=None, labels=None):
         image[:, :, 0] = np.clip(image[:, :, 0] + self.delta, 0, 180)
         return Identity()(image, gt_boxes, labels)
+
+
+class Gamma(object):
+    """
+    改变RGB图像的gamma值
+    """
+
+    def __init__(self, gamma):
+        if gamma <= 0.0:
+            raise ValueError("It must be `gamma > 0`.")
+        self.gamma = gamma
+        self.gamma_inv = 1.0 / gamma
+        self.table = np.array([((i / 255.0) ** self.gamma_inv) * 255 for i in np.arange(0, 256)]).astype("uint8")
+
+    def __call__(self, image, gt_boxes=None, labels=None):
+        image = cv2.LUT(image, self.table)
+        return Identity()(image, gt_boxes, labels)
