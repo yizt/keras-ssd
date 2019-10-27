@@ -430,3 +430,20 @@ class RandomSampleCrop(object):
                 boxes[:, [0, 2]] -= y1
 
                 return cur_image, boxes, cur_labels
+
+
+class Compose(object):
+    """
+    组合多个转换
+    """
+
+    def __init__(self, transforms):
+        self.transforms = transforms
+
+    def __call__(self, img, gt_boxes=None, labels=None):
+        for t in self.transforms:
+            if gt_boxes is not None:
+                img, gt_boxes, labels = t(img, gt_boxes, labels)
+            else:
+                img = t(img)
+        return img, gt_boxes, labels
