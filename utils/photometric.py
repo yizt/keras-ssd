@@ -131,3 +131,16 @@ class Gamma(object):
     def __call__(self, image, gt_boxes=None, labels=None):
         image = cv2.LUT(image, self.table)
         return Identity()(image, gt_boxes, labels)
+
+
+class HistogramEqualization:
+    """
+    对HSV图像做直方图均衡化
+    """
+
+    def __init__(self):
+        super(HistogramEqualization, self).__init__()
+
+    def __call__(self, image, gt_boxes=None, labels=None):
+        image[:, :, 2] = cv2.equalizeHist(image[:, :, 2])
+        return Identity()(image, gt_boxes, labels)
