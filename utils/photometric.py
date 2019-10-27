@@ -70,7 +70,7 @@ class Saturation(object):
         return Identity()(image, gt_boxes, labels)
 
 
-class Brightness:
+class Brightness(object):
     """
     改变RGB图像的亮度
     """
@@ -86,7 +86,7 @@ class Brightness:
         return Identity()(image, gt_boxes, labels)
 
 
-class Contrast:
+class Contrast(object):
     """
     改变对比度
     """
@@ -98,4 +98,19 @@ class Contrast:
 
     def __call__(self, image, gt_boxes=None, labels=None):
         image = np.clip(127.5 + self.factor * (image - 127.5), 0, 255)
+        return Identity()(image, gt_boxes, labels)
+
+
+class Hue(object):
+    """
+    改变颜色
+    """
+
+    def __init__(self, delta):
+        if not (-180 <= delta <= 180):
+            raise ValueError("`delta` must be in the closed interval `[-180, 180]`.")
+        self.delta = delta
+
+    def __call__(self, image, gt_boxes=None, labels=None):
+        image[:, :, 0] = np.clip(image[:, :, 0] + self.delta, 0, 180)
         return Identity()(image, gt_boxes, labels)
