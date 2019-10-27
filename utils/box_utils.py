@@ -46,5 +46,5 @@ def iou_1vn(box, boxes):
     :param boxes: [N,4]
     :return iou: [N]
     """
-    iou = iou_1vn(box[np.newaxis, box], boxes)  # [1,N]
+    iou = iou_nvn(box[np.newaxis, :], boxes)  # [1,N]
     return iou[0]
