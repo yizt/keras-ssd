@@ -432,6 +432,37 @@ class RandomSampleCrop(object):
                 return cur_image, boxes, cur_labels
 
 
+class ToAbsoluteCoordinates(object):
+    """
+    gt boxes 转为绝对坐标
+    """
+
+    def __init__(self):
+        super(ToAbsoluteCoordinates, self).__init__()
+
+    def __call__(self, image, gt_boxes=None, labels=None):
+        height, width, _ = image.shape
+        gt_boxes[:, [1, 3]] *= width
+        gt_boxes[:, [0, 2]] *= height
+        return image, gt_boxes, labels
+
+
+class ToPercentCoordinates(object):
+    """
+    gt boxes 转为相对坐标
+    """
+
+    def __init__(self):
+        super(ToPercentCoordinates, self).__init__()
+
+    def __call__(self, image, gt_boxes=None, labels=None):
+        height, width, _ = image.shape
+        gt_boxes[:, [1, 3]] /= width
+        gt_boxes[:, [0, 2]] /= height
+
+        return image, gt_boxes, labels
+
+
 class Compose(object):
     """
     组合多个转换
