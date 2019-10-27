@@ -7,6 +7,37 @@
 """
 import cv2
 import numpy as np
+from utils import box_utils
+
+
+def center_filter(gt_boxes, rect):
+    """
+    过滤边框中心点不在矩形框内的边框
+    :param gt_boxes: [N,(y1,x1,y2,x2)]
+    :param rect: [y1,x1,y2,x2]
+    :return keep: 保留的边框索引号
+    """
+    # gt boxes中心点坐标
+    ctr_x = np.sum(gt_boxes[:, [1, 3]], axis=1) / 2.  # [N]
+    ctr_y = np.sum(gt_boxes[:, [0, 2]], axis=1) / 2.  # [N]
+    y1, x1, y2, x2 = rect  # 矩形框坐标
+
+    keep = np.logical_and(np.logical_and(np.logical_and(ctr_x >= x1, ctr_x <= x2),
+                                         ctr_y >= y1),
+                          ctr_y <= y2)
+    return keep
+
+
+def iou_filter(gt_boxes, rect, min_iou):
+    """
+    过滤 与矩形框iou小于阈值的边框
+    :param gt_boxes: [N,(y1,x1,y2,x2)]
+    :param rect: [y1,x1,y2,x2]
+    :param min_iou:
+    :return keep: 保留的边框索引号
+    """
+    iou = box_utils.iou_1vn(np.array(rect), gt_boxes)  # [N]
+    return iou >= min_iou
 
 
 class Resize(object):
@@ -24,13 +55,13 @@ class Resize(object):
         self.out_width = width
         self.interpolation_mode = interpolation_mode
 
-    def __call__(self, image, gt_boxes=None):
+    def __call__(self, image, gt_boxes=None, labels=None):
         """
 
         :param image: [H,W,3]
         :param gt_boxes: GT boxes [N,(y1,x1,y2,x2)]
-        :return image:
-        :return boxes:
+        :param labels: [N]
+        :return:
         """
 
         img_height, img_width = image.shape[:2]
@@ -44,7 +75,7 @@ class Resize(object):
         boxes = gt_boxes.copy()
         boxes[:, [0, 2]] = boxes[:, [0, 2]] * (self.out_height / img_height)
         boxes[:, [1, 3]] = boxes[:, [1, 3]] * (self.out_width / img_width)
-        return image, boxes
+        return image, boxes, labels
 
 
 class Flip:
@@ -59,11 +90,12 @@ class Flip:
         """
         self.dim = dim
 
-    def __call__(self, image, gt_boxes=None):
+    def __call__(self, image, gt_boxes=None, labels=None):
         """
 
         :param image: [H,W,3]
         :param gt_boxes: GT boxes [N,(y1,x1,y2,x2)]
+        :param labels: [N]
         :return:
         """
         img_height, img_width = image.shape[:2]
@@ -83,7 +115,7 @@ class Flip:
 
             boxes = np.copy(gt_boxes)
             boxes[:, [0, 2]] = img_height - boxes[:, [2, 0]]
-            return image, boxes
+            return image, boxes, labels
 
 
 class HorizontalFlip(Flip):
@@ -123,11 +155,12 @@ class Translate(object):
         self.clip_boxes = clip_boxes
         self.background = background
 
-    def __call__(self, image, gt_boxes=None):
+    def __call__(self, image, gt_boxes=None, labels=None):
         """
 
         :param image: [H,W,3]
         :param gt_boxes: GT boxes [N,(y1,x1,y2,x2)]
+        :param labels: [N]
         :return:
         """
 
@@ -153,11 +186,16 @@ class Translate(object):
         boxes[:, [1, 3]] += dx_abs
         boxes[:, [0, 2]] += dy_abs
 
+        # 过滤中心点不在图像内的边框
+        keep = center_filter(boxes, [0, 0, img_height, img_width])
+        boxes = boxes[keep]
+        labels = labels[keep]
+
         if self.clip_boxes:
             boxes[:, [1, 3]] = np.clip(boxes[:, [1, 3]], a_min=0, a_max=img_width)
             boxes[:, [0, 2]] = np.clip(boxes[:, [0, 2]], a_min=0, a_max=img_height)
 
-        return image, boxes
+        return image, boxes, labels
 
 
 class Scale(object):
@@ -180,11 +218,12 @@ class Scale(object):
         self.clip_boxes = clip_boxes
         self.background = background
 
-    def __call__(self, image, gt_boxes=None):
+    def __call__(self, image, gt_boxes=None, labels=None):
         """
 
         :param image: [H,W,3]
         :param gt_boxes: GT boxes [N,(y1,x1,y2,x2)]
+        :param labels: [N]
         :return:
         """
 
@@ -214,11 +253,16 @@ class Scale(object):
         boxes[:, [1, 0]] = new_top_left
         boxes[:, [3, 2]] = new_bottom_right
 
+        # 过滤中心点不在图像内的边框
+        keep = center_filter(boxes, [0, 0, img_height, img_width])
+        boxes = boxes[keep]
+        labels = labels[keep]
+
         if self.clip_boxes:
             boxes[:, [1, 3]] = np.clip(boxes[:, [1, 3]], a_min=0, a_max=img_width)
             boxes[:, [0, 2]] = np.clip(boxes[:, [0, 2]], a_min=0, a_max=img_height)
 
-        return image, boxes
+        return image, boxes, labels
 
 
 class Rotate(object):
@@ -270,7 +314,14 @@ class Rotate(object):
 
         return new_gt_boxes
 
-    def __call__(self, image, gt_boxes=None):
+    def __call__(self, image, gt_boxes=None, labels=None):
+        """
+
+        :param image: [H,W,3]
+        :param gt_boxes: GT boxes [N,(y1,x1,y2,x2)]
+        :param labels: [N]
+        :return:
+        """
         img_height, img_width = image.shape[:2]
 
         matrix = cv2.getRotationMatrix2D(center=(img_width / 2, img_height / 2),
@@ -288,4 +339,9 @@ class Rotate(object):
         boxes = gt_boxes.copy()
         boxes = self.get_new_boxes(img_height, img_width, boxes, matrix)
 
-        return image, boxes
+        # 过滤中心点不在图像内的边框
+        keep = center_filter(boxes, [0, 0, img_height, img_width])
+        boxes = boxes[keep]
+        labels = labels[keep]
+
+        return image, boxes, labels
