@@ -66,8 +66,9 @@ class Saturation(object):
         self.factor = factor
 
     def __call__(self, image, gt_boxes=None, labels=None):
+        image = image.astype(np.float32)
         image[:, :, 1] = np.clip(image[:, :, 1] * self.factor, 0, 255)
-        return Identity()(image, gt_boxes, labels)
+        return Identity()(image.astype(np.uint8), gt_boxes, labels)
 
 
 class Brightness(object):
@@ -82,8 +83,9 @@ class Brightness(object):
         self.delta = delta
 
     def __call__(self, image, gt_boxes=None, labels=None):
+        image = image.astype(np.float32)
         image = np.clip(image + self.delta, 0, 255)
-        return Identity()(image, gt_boxes, labels)
+        return Identity()(image.astype(np.uint8), gt_boxes, labels)
 
 
 class Contrast(object):
@@ -97,8 +99,9 @@ class Contrast(object):
         self.factor = factor
 
     def __call__(self, image, gt_boxes=None, labels=None):
+        image = image.astype(np.float32)
         image = np.clip(127.5 + self.factor * (image - 127.5), 0, 255)
-        return Identity()(image, gt_boxes, labels)
+        return Identity()(image.astype(np.uint8), gt_boxes, labels)
 
 
 class Hue(object):
@@ -112,8 +115,9 @@ class Hue(object):
         self.delta = delta
 
     def __call__(self, image, gt_boxes=None, labels=None):
+        image = image.astype(np.float32)
         image[:, :, 0] = np.clip(image[:, :, 0] + self.delta, 0, 180)
-        return Identity()(image, gt_boxes, labels)
+        return Identity()(image.astype(np.uint8), gt_boxes, labels)
 
 
 class Gamma(object):
