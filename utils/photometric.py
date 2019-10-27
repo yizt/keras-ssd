@@ -9,6 +9,20 @@ import cv2
 import numpy as np
 
 
+class Identity(object):
+    """
+    恒等转换
+    """
+
+    def __init__(self):
+        super(Identity, self).__init__()
+
+    def __call__(self, image, gt_boxes=None, labels=None):
+        if gt_boxes is None:
+            return image
+        return image, gt_boxes, labels
+
+
 class ConvertColor(object):
     """
     色彩空间转换
@@ -38,7 +52,7 @@ class ConvertColor(object):
             image = cv2.cvtColor(image, cv2.COLOR_HSV2RGB)
         else:
             raise NotImplementedError
-        return image, gt_boxes, labels
+        return Identity()(image, gt_boxes, labels)
 
 
 class Saturation(object):
@@ -53,10 +67,7 @@ class Saturation(object):
 
     def __call__(self, image, gt_boxes=None, labels=None):
         image[:, :, 1] = np.clip(image[:, :, 1] * self.factor, 0, 255)
-        if gt_boxes is None:
-            return image
-        else:
-            return image, gt_boxes, labels
+        return Identity()(image, gt_boxes, labels)
 
 
 class Brightness:
@@ -65,11 +76,26 @@ class Brightness:
     """
 
     def __init__(self, delta):
+        """
+        :param delta: 改变的像素值
+        """
         self.delta = delta
 
     def __call__(self, image, gt_boxes=None, labels=None):
         image = np.clip(image + self.delta, 0, 255)
-        if gt_boxes is None:
-            return image
-        else:
-            return image, gt_boxes, labels
+        return Identity()(image, gt_boxes, labels)
+
+
+class Contrast:
+    """
+    改变对比度
+    """
+
+    def __init__(self, factor):
+        if factor <= 0.0:
+            raise ValueError("It must be `factor > 0`.")
+        self.factor = factor
+
+    def __call__(self, image, gt_boxes=None, labels=None):
+        image = np.clip(127.5 + self.factor * (image - 127.5), 0, 255)
+        return Identity()(image, gt_boxes, labels)
