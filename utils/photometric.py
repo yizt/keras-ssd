@@ -57,3 +57,19 @@ class Saturation(object):
             return image
         else:
             return image, gt_boxes, labels
+
+
+class Brightness:
+    """
+    改变RGB图像的亮度
+    """
+
+    def __init__(self, delta):
+        self.delta = delta
+
+    def __call__(self, image, gt_boxes=None, labels=None):
+        image = np.clip(image + self.delta, 0, 255)
+        if gt_boxes is None:
+            return image
+        else:
+            return image, gt_boxes, labels
