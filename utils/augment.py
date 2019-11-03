@@ -9,6 +9,7 @@ import cv2
 import numpy as np
 from utils import box_utils
 import random
+import torch
 
 
 def center_filter(gt_boxes, rect):
@@ -39,6 +40,20 @@ def iou_filter(gt_boxes, rect, min_iou):
     """
     iou = box_utils.iou_1vn(np.array(rect), gt_boxes)  # [N]
     return iou >= min_iou
+
+
+class Identity(object):
+    """
+    恒等转换
+    """
+
+    def __init__(self):
+        super(Identity, self).__init__()
+
+    def __call__(self, image, gt_boxes=None, labels=None):
+        if gt_boxes is None:
+            return image
+        return image, gt_boxes, labels
 
 
 class Resize(object):
@@ -126,6 +141,16 @@ class HorizontalFlip(Flip):
 
     def __init__(self):
         super(HorizontalFlip, self).__init__(dim='horizontal')
+
+
+class RandomHorizontalFlip(object):
+    def __init__(self, prob=0.5):
+        self.prob = prob
+
+    def __call__(self, image, gt_boxes=None, labels=None):
+        if random.random() < self.prob:
+            return HorizontalFlip()(image, gt_boxes, labels)
+        return Identity()(image, gt_boxes, labels)
 
 
 class VerticalFlip(Flip):
@@ -432,6 +457,20 @@ class RandomSampleCrop(object):
                 return cur_image, boxes, cur_labels
 
 
+class SubtractMeans(object):
+    def __init__(self, mean):
+        """
+
+        :param mean: (red_mean,green_mean,blue_mean)
+        """
+        self.mean = np.array(mean, dtype=np.float32)
+
+    def __call__(self, image, gt_boxes=None, labels=None):
+        image = image.astype(np.float32)
+        image -= self.mean
+        return Identity()(image.astype(np.float32), gt_boxes, labels)
+
+
 class ToAbsoluteCoordinates(object):
     """
     gt boxes 转为绝对坐标
@@ -461,6 +500,12 @@ class ToPercentCoordinates(object):
         gt_boxes[:, [0, 2]] /= height
 
         return image, gt_boxes, labels
+
+
+class ToTensor(object):
+    def __call__(self, image, boxes=None, labels=None):
+        image = torch.from_numpy(image.astype(np.float32)).permute(2, 0, 1)  # [C,H,W]
+        return Identity()(image, boxes, labels)
 
 
 class Compose(object):

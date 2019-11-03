@@ -7,6 +7,7 @@
 """
 import cv2
 import numpy as np
+import random
 
 
 class Identity(object):
@@ -71,6 +72,21 @@ class Saturation(object):
         return Identity()(image.astype(np.uint8), gt_boxes, labels)
 
 
+class RandomSaturation(object):
+    def __init__(self, prob=0.5, lower=0.5, upper=1.5):
+        self.prob = prob
+        self.lower = lower
+        self.upper = upper
+        assert self.upper >= self.lower, "saturation upper must be >= lower."
+        assert self.lower >= 0, "saturation lower must be non-negative."
+
+    def __call__(self, image, gt_boxes=None, labels=None):
+        if random.random() < self.prob:
+            alpha = random.uniform(self.lower, self.upper)
+            return Saturation(factor=alpha)(image, gt_boxes, labels)
+        return Identity()(image, gt_boxes, labels)
+
+
 class Brightness(object):
     """
     改变RGB图像的亮度
@@ -86,6 +102,20 @@ class Brightness(object):
         image = image.astype(np.float32)
         image = np.clip(image + self.delta, 0, 255)
         return Identity()(image.astype(np.uint8), gt_boxes, labels)
+
+
+class RandomBrightness(object):
+    def __init__(self, prob=0.5, delta=32):
+        assert delta >= 0.0
+        assert delta <= 255.0
+        self.prob = prob
+        self.delta = delta
+
+    def __call__(self, image, gt_boxes=None, labels=None):
+        if random.random() < self.prob:
+            delta = random.uniform(-self.delta, self.delta)
+            return Brightness(delta)(image, gt_boxes, labels)
+        return Identity()(image, gt_boxes, labels)
 
 
 class Contrast(object):
@@ -104,6 +134,21 @@ class Contrast(object):
         return Identity()(image.astype(np.uint8), gt_boxes, labels)
 
 
+class RandomContrast(object):
+    def __init__(self, prob=0.5, lower=0.5, upper=1.5):
+        self.prob = prob
+        self.lower = lower
+        self.upper = upper
+        assert self.upper >= self.lower, "contrast upper must be >= lower."
+        assert self.lower >= 0, "contrast lower must be non-negative."
+
+    def __call__(self, image, gt_boxes=None, labels=None):
+        if random.random() < self.prob:
+            alpha = random.uniform(self.lower, self.upper)
+            return Contrast(factor=alpha)(image, gt_boxes, labels)
+        return Identity()(image, gt_boxes, labels)
+
+
 class Hue(object):
     """
     改变颜色
@@ -118,6 +163,19 @@ class Hue(object):
         image = image.astype(np.float32)
         image[:, :, 0] = np.clip(image[:, :, 0] + self.delta, 0, 180)
         return Identity()(image.astype(np.uint8), gt_boxes, labels)
+
+
+class RandomHue(object):
+    def __init__(self, prob=0.5, delta=18.0):
+        assert -180 <= delta <= 180, "`delta` must be in the closed interval `[-180, 180]`."
+        self.delta = delta
+        self.prob = prob
+
+    def __call__(self, image, gt_boxes=None, labels=None):
+        if random.random() < self.prob:
+            delta = random.uniform(-self.delta, self.delta)
+            return Hue(delta)(image, gt_boxes, labels)
+        return Identity()(image, gt_boxes, labels)
 
 
 class Gamma(object):
@@ -160,4 +218,18 @@ class ChannelSwap:
 
     def __call__(self, image, gt_boxes=None, labels=None):
         image = image[:, :, self.order]
+        return Identity()(image, gt_boxes, labels)
+
+
+class RandomChannelSwap(object):
+    def __init__(self, prob=0.5):
+        self.prob = prob
+        self.perms = ((0, 1, 2), (0, 2, 1),
+                      (1, 0, 2), (1, 2, 0),
+                      (2, 0, 1), (2, 1, 0))
+
+    def __call__(self, image, gt_boxes=None, labels=None):
+        if random.random() < self.prob:
+            order = self.perms[np.random.randint(0, len(self.perms))]
+            return ChannelSwap(order)(image, gt_boxes, labels)
         return Identity()(image, gt_boxes, labels)
