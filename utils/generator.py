@@ -52,11 +52,11 @@ class Generator(utils.data_utils.Sequence):
             gt_class_ids = self.image_info_list[index].labels
 
             # resize图像
-            images[i], batch_gt_boxes[i], batch_gt_class_ids[i] = self.transforms(image, gt_boxes, gt_class_ids)
+            images[i], gt_boxes, gt_class_ids = self.transforms(image, gt_boxes, gt_class_ids)
             # pad gt到固定个数
             batch_gt_boxes[i] = np_utils.pad_to_fixed_size(gt_boxes, self.max_gt_num)
             batch_gt_class_ids[i] = np_utils.pad_to_fixed_size(
-                np.expand_dims(self.annotation_list[index]['labels'], axis=1),
+                np.expand_dims(gt_class_ids, axis=1),
                 self.max_gt_num)
 
         return {"input_image": images,
