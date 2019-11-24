@@ -123,7 +123,7 @@ class Flip:
 
             boxes = np.copy(gt_boxes)
             boxes[:, [1, 3]] = img_width - boxes[:, [3, 1]]
-            return image, boxes
+            return image, boxes, labels
         else:  # 垂直翻转
             image = image[::-1]
             if gt_boxes is None:
