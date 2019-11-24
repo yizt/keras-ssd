@@ -5,7 +5,6 @@
  @Author  : yizuotian
  @Description    :
 """
-import tensorflow as tf
 from tensorflow.python.keras import backend, layers, Model
 from utils.anchor import generate_anchors, FeatureSpec
 from layers.target import SSDTarget
@@ -79,10 +78,10 @@ def rgr_headers(feature_list, num_anchors_list):
 
 
 def ssd_model(feature_fn, input_shape, num_classes, specs: List[FeatureSpec],
-              max_gt_num, positive_iou_threshold, negative_iou_threshold,
+              max_gt_num=100, positive_iou_threshold=0.5, negative_iou_threshold=0.4,
               score_threshold=0.5, iou_threshold=0.3, max_detections_per_class=100,
               max_total_detections=100, stage='train'):
-    image_input = layers.Input(shape=input_shape)
+    image_input = layers.Input(shape=input_shape, name='input_image')
 
     anchors = generate_anchors(specs)
     feature_list = feature_fn(image_input)
@@ -92,8 +91,8 @@ def ssd_model(feature_fn, input_shape, num_classes, specs: List[FeatureSpec],
     predict_deltas = rgr_headers(feature_list, num_anchors_list)
 
     if stage == 'train':
-        gt_boxes = layers.Input(shape=(max_gt_num, 5), dtype='float32')
-        gt_class_ids = layers.Input(shape=(max_gt_num, 2), dtype='int32')
+        gt_boxes = layers.Input(shape=(max_gt_num, 5), dtype='float32', name='input_gt_boxes')
+        gt_class_ids = layers.Input(shape=(max_gt_num, 2), dtype='int32', name='input_gt_class_ids')
         # 分类和回归目标
         # for i, anchors in enumerate(anchors_list):
         #     target = SSDTarget(anchors, positive_iou_threshold, negative_iou_threshold,
@@ -108,9 +107,9 @@ def ssd_model(feature_fn, input_shape, num_classes, specs: List[FeatureSpec],
         deltas, cls_ids, anchors_tag = SSDTarget(anchors, positive_iou_threshold, negative_iou_threshold,
                                                  name='ssd_target')([gt_boxes, gt_class_ids])
         cls_losses = layers.Lambda(lambda x: cls_loss(*x),
-                                   name='cls_losses')([predict_logits, cls_ids, anchors_tag])
+                                   name='class_loss')([predict_logits, cls_ids, anchors_tag])
         rgr_losses = layers.Lambda(lambda x: regress_loss(*x),
-                                   name='rgr_loss')([predict_deltas, deltas, anchors_tag])
+                                   name='bbox_loss')([predict_deltas, deltas, anchors_tag])
 
         m = Model([image_input, gt_boxes, gt_class_ids], [cls_losses, rgr_losses])
     else:
@@ -130,8 +129,10 @@ def main():
     from config import cfg
 
     model = ssd_model(cfg.feature_fn, (300, 300, 3), cfg.num_classes,
-                      cfg.specs, cfg.max_gt_num, cfg.positive_iou_threshold,
-                      cfg.negative_iou_threshold, stage='train')
+                      cfg.specs, stage='train')
+    model.summary()
+    model = ssd_model(cfg.feature_fn, (300, 300, 3), cfg.num_classes,
+                      cfg.specs, stage='test')
     model.summary()
 
 
