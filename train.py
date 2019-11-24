@@ -74,7 +74,7 @@ def main(args):
     if args.init_epoch > 0:
         m.load_weights('/tmp/ssd-{}.{:03d}.h5'.format(cfg.base_model_name, init_epoch), by_name=True)
     else:
-        m.load_weights(cfg.pretrained_weights, by_name=True)
+        m.load_weights(cfg.pretrained_weight_path, by_name=True)
     # 生成器
     transforms = TrainAugmentation(cfg.image_size, cfg.mean_pixel, cfg.std)
     train_gen = Generator(train_img_info,
