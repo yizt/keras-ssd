@@ -40,7 +40,7 @@ class PhotometricDistort(object):
 class TrainAugmentation:
     def __init__(self, size, mean=0, std=1.0):
         """
-        
+
         :param size:
         :param mean:
         :param std:
@@ -55,16 +55,16 @@ class TrainAugmentation:
             Resize(self.size, self.size),
             SubtractMeans(self.mean),
             lambda img, boxes=None, labels=None: (img / std, boxes, labels),
-            ToTensor(),
+            # ToTensor(),
         ])
 
     def __call__(self, img, boxes, labels):
         """
 
         Args:
-            img: the output of cv.imread in RGB layout.
-            boxes: boundding boxes in the form of (x1, y1, x2, y2).
-            labels: labels of boxes.
+            img: [H,W,3]
+            boxes: [N,(y1,x1,y2,x2)]
+            labels: [N]
         """
         return self.augment(img, boxes, labels)
 
