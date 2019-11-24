@@ -8,7 +8,7 @@
 from tensorflow.python.keras import backend, layers, Model
 from utils.anchor import generate_anchors, FeatureSpec
 from layers.target import SSDTarget
-from layers.losses import MultiRegressLoss, MultiClsLoss
+from layers.losses import regress_loss, cls_loss
 from utils.anchor import FeatureSpec
 from typing import List
 
@@ -60,7 +60,7 @@ def cls_headers(feature_list, num_anchors_list, num_classes):
         headers.append(header)
 
     # 拼接所有header
-    # headers = layers.Concatenate(axis=0, name='cls_header_concat')(headers)
+    headers = layers.Concatenate(axis=1, name='cls_header_concat')(headers)  # [B,num_anchors,num_classes]
     return headers
 
 
@@ -73,7 +73,7 @@ def rgr_headers(feature_list, num_anchors_list):
                                 name='rgr_header_flatten_{}'.format(i))(header)
         headers.append(header)
     # 拼接所有header
-    # headers = layers.Concatenate(axis=0, name='rgr_header_concat')(headers)
+    headers = layers.Concatenate(axis=1, name='rgr_header_concat')(headers)  # [B,num_anchors,4]
     return headers
 
 
@@ -81,36 +81,41 @@ def ssd_model(feature_fn, input_shape, num_classes, specs: List[FeatureSpec],
               max_gt_num, positive_iou_threshold, negative_iou_threshold, stage='train'):
     image_input = layers.Input(shape=input_shape)
 
-    anchors_list = generate_anchors(specs)
+    anchors = generate_anchors(specs)
     feature_list = feature_fn(image_input)
 
     num_anchors_list = [len(spec.aspect_ratios) + 2 for spec in specs]
-    predict_logits_list = cls_headers(feature_list, num_anchors_list, num_classes)
-    predict_deltas_list = rgr_headers(feature_list, num_anchors_list)
+    predict_logits = cls_headers(feature_list, num_anchors_list, num_classes)
+    predict_deltas = rgr_headers(feature_list, num_anchors_list)
 
     if stage == 'train':
         gt_boxes = layers.Input(shape=(max_gt_num, 5), dtype='float32')
         gt_class_ids = layers.Input(shape=(max_gt_num, 2), dtype='int32')
         # 分类和回归目标
-        deltas_list = [''] * len(anchors_list)
-        labels_list = [''] * len(anchors_list)
-        anchors_tag_list = [''] * len(anchors_list)
-        for i, anchors in enumerate(anchors_list):
-            target = SSDTarget(anchors, positive_iou_threshold, negative_iou_threshold,
-                               name='target_{}'.format(i))
-            deltas_list[i], labels_list[i], anchors_tag_list[i] = target([gt_boxes, gt_class_ids])
-
-        # 计算loss
-        cls_loss = MultiClsLoss(name='multi_cls_loss')([predict_logits_list,
-                                                        labels_list, anchors_tag_list])
-        rgr_loss = MultiRegressLoss(name='multi_rgr_loss')([predict_deltas_list,
-                                                            deltas_list, anchors_tag_list])
-        m = Model([image_input, gt_boxes, gt_class_ids], [cls_loss, rgr_loss])
+        # for i, anchors in enumerate(anchors_list):
+        #     target = SSDTarget(anchors, positive_iou_threshold, negative_iou_threshold,
+        #                        name='target_{}'.format(i))
+        #     deltas_list[i], labels_list[i], anchors_tag_list[i] = target([gt_boxes, gt_class_ids])
+        #
+        # # 计算loss
+        # cls_loss = MultiClsLoss(name='multi_cls_loss')([predict_logits_list,
+        #                                                 labels_list, anchors_tag_list])
+        # rgr_loss = MultiRegressLoss(name='multi_rgr_loss')([predict_deltas_list,
+        #                                                     deltas_list, anchors_tag_list])
+        deltas, cls_ids, anchors_tag = SSDTarget(anchors, positive_iou_threshold, negative_iou_threshold,
+                                                 name='ssd_target')([gt_boxes, gt_class_ids])
+        cls_losses = layers.Lambda(lambda x: cls_loss(*x),
+                                   name='cls_losses')([predict_logits, cls_ids, anchors_tag])
+        rgr_losses = layers.Lambda(lambda x: regress_loss(*x),
+                                   name='rgr_loss')([predict_deltas, deltas, anchors_tag])
+        m = Model([image_input, gt_boxes, gt_class_ids], [cls_losses, rgr_losses])
+    else:
+        pass
 
     return m
 
 
-if __name__ == '__main__':
+def main():
     from base_net.mobilenet import mobilenet_v2_features
     from config import cfg
 
@@ -118,3 +123,15 @@ if __name__ == '__main__':
                       cfg.specs, cfg.max_gt_num, cfg.positive_iou_threshold,
                       cfg.negative_iou_threshold)
     model.summary()
+
+
+def test():
+    x = layers.Input(shape=(4, 100, 100, 3))
+    y = layers.Concatenate(axis=0)([x, x])
+    m = Model(x, y)
+    m.summary()
+
+
+if __name__ == '__main__':
+    main()
+    # test()

@@ -27,7 +27,7 @@ def cls_loss(predict_cls_logits, true_cls_ids, anchors_tag):
     # 交叉熵损失函数
     losses = tf.nn.softmax_cross_entropy_with_logits_v2(
         labels=true_cls_ids, logits=predict_cls_logits)
-    # losses = tf.reduce_mean(losses)
+    losses = tf.reduce_mean(losses)
     return losses
 
 
@@ -62,7 +62,7 @@ def regress_loss(predict_deltas, deltas, anchors_tag):
     loss = tf.cond(tf.size(deltas) > 0,
                    true_fn=lambda: smooth_l1_loss(deltas, predict_deltas),
                    false_fn=lambda: tf.constant([0.0]))
-    # loss = tf.reduce_mean(loss)
+    loss = tf.reduce_mean(loss)
     return loss
 
 
