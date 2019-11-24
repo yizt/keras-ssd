@@ -72,7 +72,7 @@ class VocDataset(Dataset):
 
             image_info['boxes'] = np.array(boxes)
             image_info['labels'] = np.array(labels)
-            self.image_info_list.append(ImageInfo._make(image_info))
+            self.image_info_list.append(ImageInfo._make(image_info.values()))
 
 
 if __name__ == '__main__':
