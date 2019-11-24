@@ -18,7 +18,9 @@ def target_graph(gt_boxes, gt_class_ids, anchors, positive_iou_threshold, negati
     :param anchors: [num_anchors,(y1,x1,y2,x2)]
     :param positive_iou_threshold:
     :param negative_iou_threshold:
-    :return:
+    :return deltas: [num_anchors,(dy,dx,dh,dw)
+    :return class_ids: [num_anchors]
+    :return anchors_tag: [num_anchors] 1-positive,-1:negative,0-ignore
     """
     gt_boxes = remove_pad(gt_boxes)
     gt_class_ids = remove_pad(gt_class_ids)[:, 0]
