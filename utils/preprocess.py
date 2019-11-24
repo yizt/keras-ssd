@@ -69,14 +69,14 @@ class TrainAugmentation:
         return self.augment(img, boxes, labels)
 
 
-class TestTransform:
+class EvalTransform:
     def __init__(self, size, mean=0.0, std=1.0):
         self.transform = Compose([
             ToPercentCoordinates(),
             Resize(size, size),
             SubtractMeans(mean),
             lambda img, boxes=None, labels=None: (img / std, boxes, labels),
-            ToTensor(),
+            # ToTensor(),
         ])
 
     def __call__(self, image, boxes, labels):
@@ -89,7 +89,7 @@ class PredictionTransform:
             Resize(size, size),
             SubtractMeans(mean),
             lambda img, boxes=None, labels=None: (img / std, boxes, labels),
-            ToTensor()
+            # ToTensor()
         ])
 
     def __call__(self, image):
