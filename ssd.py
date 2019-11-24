@@ -5,11 +5,12 @@
  @Author  : yizuotian
  @Description    :
 """
+import tensorflow as tf
 from tensorflow.python.keras import backend, layers, Model
 from utils.anchor import generate_anchors, FeatureSpec
 from layers.target import SSDTarget
 from layers.losses import regress_loss, cls_loss
-from utils.anchor import FeatureSpec
+from layers.detect_boxes import DetectBox
 from typing import List
 
 
@@ -78,7 +79,9 @@ def rgr_headers(feature_list, num_anchors_list):
 
 
 def ssd_model(feature_fn, input_shape, num_classes, specs: List[FeatureSpec],
-              max_gt_num, positive_iou_threshold, negative_iou_threshold, stage='train'):
+              max_gt_num, positive_iou_threshold, negative_iou_threshold,
+              score_threshold=0.5, iou_threshold=0.3, max_detections_per_class=100,
+              max_total_detections=100, stage='train'):
     image_input = layers.Input(shape=input_shape)
 
     anchors = generate_anchors(specs)
@@ -108,20 +111,27 @@ def ssd_model(feature_fn, input_shape, num_classes, specs: List[FeatureSpec],
                                    name='cls_losses')([predict_logits, cls_ids, anchors_tag])
         rgr_losses = layers.Lambda(lambda x: regress_loss(*x),
                                    name='rgr_loss')([predict_deltas, deltas, anchors_tag])
+
         m = Model([image_input, gt_boxes, gt_class_ids], [cls_losses, rgr_losses])
     else:
-        pass
+        boxes, class_ids, scores = DetectBox(anchors,
+                                             score_threshold=score_threshold,
+                                             iou_threshold=iou_threshold,
+                                             max_detections_per_class=max_detections_per_class,
+                                             max_total_detections=max_total_detections)(
+            [predict_deltas, predict_logits])
+
+        m = Model(image_input, [boxes, class_ids, scores])
 
     return m
 
 
 def main():
-    from base_net.mobilenet import mobilenet_v2_features
     from config import cfg
 
-    model = ssd_model(mobilenet_v2_features, (300, 300, 3), 3,
+    model = ssd_model(cfg.feature_fn, (300, 300, 3), cfg.num_classes,
                       cfg.specs, cfg.max_gt_num, cfg.positive_iou_threshold,
-                      cfg.negative_iou_threshold)
+                      cfg.negative_iou_threshold, stage='train')
     model.summary()
 
 

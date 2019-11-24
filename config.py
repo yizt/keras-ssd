@@ -20,8 +20,15 @@ class Config(object):
              FeatureSpec(1, 300, 285, 330, [2, 1 / 2])]
 
     max_gt_num = 100
+    #
     positive_iou_threshold = 0.5
     negative_iou_threshold = 0.4
+
+    # detect boxes
+    max_detections_per_class = 100
+    max_total_detections = 100
+    score_threshold = 0.5
+    iou_threshold = 0.3
 
     @classmethod
     def feature_fn(cls, *args, **kwargs):
