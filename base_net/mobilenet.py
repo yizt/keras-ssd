@@ -113,8 +113,8 @@ def extra_features(inputs, alpha):
     return feature3, feature4, feature5, feature6
 
 
-def mobilenet_v2_features(input_shape, alpha=1.):
-    f1, f2 = mobilenet_v2_base(input_shape, alpha)
+def mobilenet_v2_features(img_input, alpha=1.):
+    f1, f2 = mobilenet_v2_base(img_input, alpha)
     f3, f4, f5, f6 = extra_features(f2, alpha)
     return f1, f2, f3, f4, f5, f6
 
