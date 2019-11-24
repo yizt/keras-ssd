@@ -25,7 +25,7 @@ def generate_anchors(specs: List[FeatureSpec]):
             FeatureSpec(2, 150, 240, 285, [2,1/2,3,1/3]),
             FeatureSpec(1, 300, 285, 330, [2,1/2,3,1/3])
         ]
-    :return anchors: [N,(y1,x1,y2,x2)]
+    :return anchors: list of [N,(y1,x1,y2,x2)]
     """
     anchors = []
     for spec in specs:
@@ -34,7 +34,7 @@ def generate_anchors(specs: List[FeatureSpec]):
                                            spec.min_size,
                                            spec.max_size,
                                            spec.aspect_ratios))
-    anchors = np.concatenate(anchors, axis=0)
+    # anchors = np.concatenate(anchors, axis=0)
     return anchors
 
 
