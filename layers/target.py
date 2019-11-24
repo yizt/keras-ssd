@@ -10,7 +10,7 @@ from tensorflow.python.keras import layers
 from utils.tf_utils import remove_pad
 
 
-def target_graph(gt_boxes, gt_class_ids, anchors, positive_iou_threshold, negative_iou_threshold):
+def target_graph(gt_boxes, gt_class_ids, anchors, num_anchors, positive_iou_threshold, negative_iou_threshold):
     """
 
     :param gt_boxes: [max_gt_num,(y1,x1,y2,x2,tag)]
@@ -24,9 +24,13 @@ def target_graph(gt_boxes, gt_class_ids, anchors, positive_iou_threshold, negati
     """
     gt_boxes = remove_pad(gt_boxes)
     gt_class_ids = remove_pad(gt_class_ids)[:, 0]
+    # gt boxes为0时，增加一个虚拟的背景boxes;防止后续计算ious时为空
+    gt_boxes, gt_class_ids = tf.cond(tf.size(gt_boxes) > 0,
+                                     true_fn=lambda: [gt_boxes, gt_class_ids],
+                                     false_fn=lambda: [tf.constant([[0., 0., 1., 1.]], dtype=tf.float32),
+                                                       tf.constant([[0]], dtype=tf.int32)])
 
     ious = compute_iou(gt_boxes, anchors)
-    # 每个anchor最大的iou值和匹配的gt boxes
     anchors_iou_max = tf.reduce_max(ious, axis=0)  # [num_anchors]
     anchors_match_gt_indices = tf.argmax(ious, axis=0)  # [num_anchors]
 
@@ -34,14 +38,18 @@ def target_graph(gt_boxes, gt_class_ids, anchors, positive_iou_threshold, negati
     match_gt_class_ids = tf.gather(gt_class_ids, anchors_match_gt_indices)
 
     # 正负样本标志;1-positive,-1:negative,0-ignore
-    anchors_tag = tf.where(tf.greater_equal(anchors_iou_max, positive_iou_threshold), 1.,
-                           tf.where(tf.less(anchors_iou_max, negative_iou_threshold), -1, 0))
+    anchors_tag = tf.where(anchors_iou_max >= positive_iou_threshold,
+                           tf.ones_like(anchors_iou_max),
+                           tf.where(anchors_iou_max < negative_iou_threshold,
+                                    -1 * tf.ones_like(anchors_iou_max),
+                                    tf.zeros_like(anchors_iou_max)))
     # 回归目标
     deltas = regress_target(anchors, match_gt_boxes)
     # 分类目标
     class_ids = match_gt_class_ids
+    class_ids.set_shape([num_anchors])
 
-    return deltas, class_ids, anchors_tag
+    return [deltas, class_ids, anchors_tag]
 
 
 def regress_target(anchors, gt_boxes):
@@ -109,6 +117,7 @@ def compute_iou(gt_boxes, anchors):
 class SSDTarget(layers.Layer):
     def __init__(self, anchors, positive_iou_threshold, negative_iou_threshold, **kwargs):
         self.anchors = anchors
+        self.num_anchors = len(anchors)
         self.positive_iou_threshold = positive_iou_threshold
         self.negative_iou_threshold = negative_iou_threshold
         super(SSDTarget, self).__init__(**kwargs)
@@ -123,13 +132,14 @@ class SSDTarget(layers.Layer):
         :return:
         """
         gt_boxes, gt_class_ids = inputs
-        anchors = tf.constant(self.anchors)
+        anchors = tf.constant(self.anchors, dtype=tf.float32)
         options = {"anchors": anchors,
+                   "num_anchors": self.num_anchors,
                    "positive_iou_threshold": self.positive_iou_threshold,
                    "negative_iou_threshold": self.negative_iou_threshold}
         outputs = tf.map_fn(lambda x: target_graph(*x, **options),
                             elems=[gt_boxes, gt_class_ids],
-                            dtype=[tf.float32, tf.float32])
+                            dtype=[tf.float32, tf.int32, tf.float32])
         return outputs
 
     def compute_output_shape(self, input_shape):
@@ -140,17 +150,26 @@ class SSDTarget(layers.Layer):
                 ]
 
 
-if __name__ == '__main__':
+def test():
     sess = tf.Session()
-    a = tf.constant([1, 1, 1, 1])
-    x = tf.ones_like(a)
-    idx = tf.constant([[1], [3]])
-    v = tf.constant([1, 1])
-    y = tf.tensor_scatter_update(a, idx, [0, 0])
-    # z = tf.scatter_update(x, idx, v)
-    sess.run(tf.global_variables_initializer())
-    print(sess.run(tf.scatter_nd(idx, v, [8])))
-    print(sess.run(y))
+    anchors_iou_max = tf.constant([0.5, 0.4, 0.3, 0.6, 0.1])
+    anchors_tag = tf.where(anchors_iou_max >= 0.5, tf.ones_like(anchors_iou_max),
+                           tf.where(anchors_iou_max < 0.4, tf.ones_like(anchors_iou_max) * -1,
+                                    tf.zeros_like(anchors_iou_max)))
+    print(sess.run(anchors_tag))
+
+
+if __name__ == '__main__':
+    test()
+    # a = tf.constant([1, 1, 1, 1])
+    # x = tf.ones_like(a)
+    # idx = tf.constant([[1], [3]])
+    # v = tf.constant([1, 1])
+    # y = tf.tensor_scatter_update(a, idx, [0, 0])
+    # # z = tf.scatter_update(x, idx, v)
+    # sess.run(tf.global_variables_initializer())
+    # print(sess.run(tf.scatter_nd(idx, v, [8])))
+    # print(sess.run(y))
     # print(sess.run(z))
     # g = tf.Graph()
     # with g.as_default():
