@@ -71,7 +71,7 @@ def main(args):
 
     # 加载预训练模型
     init_epoch = args.init_epoch
-    if args.init_epochs > 0:
+    if args.init_epoch > 0:
         m.load_weights('/tmp/ssd-{}.{:03d}.h5'.format(cfg.base_model_name, init_epoch), by_name=True)
     else:
         m.load_weights(cfg.pretrained_weights, by_name=True)
