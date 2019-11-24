@@ -51,10 +51,10 @@ class TrainAugmentation:
             PhotometricDistort(),
             RandomSampleCrop(),
             RandomHorizontalFlip(),
-            ToPercentCoordinates(),
+            # ToPercentCoordinates(),
             Resize(self.size, self.size),
             SubtractMeans(self.mean),
-            lambda img, boxes=None, labels=None: (img / std, boxes, labels),
+            lambda img, boxes=None, labels=None: (img / std, boxes, labels)
             # ToTensor(),
         ])
 
@@ -100,8 +100,10 @@ class PredictionTransform:
 def main():
     im = np.random.rand(224, 224, 3) * 255
     im = im.astype(np.uint8)
-    trans = PhotometricDistort()
-    img, _, _ = trans(im, [], [])
+    print(im.shape)
+    trans = TrainAugmentation(300)
+    img, _, _ = trans(im, np.array([[10., 20., 150., 200.]]), np.array([1]))
+    print(img.shape)
 
 
 if __name__ == '__main__':
