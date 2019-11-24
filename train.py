@@ -27,16 +27,19 @@ def set_gpu_growth():
     keras.backend.set_session(session)
 
 
-def lr_schedule(epoch):
-    if epoch < 20:
-        return cfg.LEARNING_RATE
-    elif epoch < 60:
-        return cfg.LEARNING_RATE / 10.
-    else:
-        return 1e-4
+def lr_schedule(total_epoch, lr):
+    def _lr_fn(epoch):
+        if epoch < total_epoch * 0.25:
+            return lr
+        elif epoch < total_epoch * 0.75:
+            return lr / 10.
+        else:
+            return lr / 100
+
+    return _lr_fn
 
 
-def get_call_back():
+def get_call_back(epochs, lr):
     """
     定义call back
     :return:
@@ -48,7 +51,7 @@ def get_call_back():
                                  save_weights_only=True,
                                  save_freq='epoch')
 
-    scheduler = LearningRateScheduler(lr_schedule)
+    scheduler = LearningRateScheduler(lr_schedule(epochs, lr))
 
     log = TensorBoard(log_dir='log')
     return [checkpoint, scheduler, log]
@@ -100,7 +103,7 @@ def main(args):
                     validation_steps=len(val_gen),
                     use_multiprocessing=False,
                     workers=10,
-                    callbacks=get_call_back())
+                    callbacks=get_call_back(args.epochs, args.lr))
 
 
 if __name__ == '__main__':
