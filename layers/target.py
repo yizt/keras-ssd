@@ -46,8 +46,10 @@ def target_graph(gt_boxes, gt_class_ids, anchors, num_anchors, positive_iou_thre
                                     tf.zeros_like(anchors_iou_max)))
     # 回归目标
     deltas = regress_target(anchors, match_gt_boxes)
-    # 分类目标
-    class_ids = match_gt_class_ids
+    # 分类目标,负样本和ignore的class_id都为0
+    class_ids = tf.where(anchors_iou_max >= positive_iou_threshold,
+                         match_gt_class_ids,
+                         tf.zeros_like(anchors_iou_max, tf.int32))
     class_ids.set_shape([num_anchors])
 
     return [deltas, class_ids, anchors_tag]
