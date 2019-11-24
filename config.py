@@ -13,7 +13,7 @@ class Config(object):
     num_classes = 2
 
     # image
-    image_size = 300,
+    image_size = 300
     input_shape = (image_size, image_size, 3)
     # preprocess
     mean_pixel = [123.7, 116.8, 103.9]
