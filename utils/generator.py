@@ -62,3 +62,38 @@ class Generator(utils.data_utils.Sequence):
         return {"input_image": images,
                 "input_gt_boxes": batch_gt_boxes,
                 "input_gt_class_ids": batch_gt_class_ids}, None
+
+
+class TestGenerator(utils.data_utils.Sequence):
+    def __init__(self, image_info_list: List[ImageInfo], transforms, input_shape, batch_size=1,
+                 **kwargs):
+        """
+
+        :param image_info_list:
+        :param transforms:
+        :param input_shape:
+        :param batch_size:
+        :param kwargs:
+        """
+        self.input_shape = input_shape
+        self.image_info_list = image_info_list
+        self.transforms = transforms
+        self.batch_size = batch_size
+        self.size = len(image_info_list)
+        super(TestGenerator, self).__init__(**kwargs)
+
+    def __len__(self):
+        return int(np.ceil(self.size / self.batch_size))
+
+    def __getitem__(self, index):
+        start = index * self.batch_size
+        end = min((index + 1) * self.batch_size, self.size)
+        indices = np.arange(start, end)
+        images = np.zeros((end - start,) + self.input_shape, dtype=np.float32)
+        for i, index in enumerate(indices):
+            # 加载图像
+            image = cv2.imread(self.image_info_list[index].image_path)[:, :, ::-1]
+            # resize图像
+            images[i] = self.transforms(image)
+
+        return {"input_image": images}
