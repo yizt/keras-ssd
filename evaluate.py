@@ -37,7 +37,7 @@ def main(args):
     print("len:{}".format(len(test_image_info_list)))
     # generator
     transform = PredictionTransform(cfg.image_size, cfg.mean_pixel, cfg.std)
-    gen = TestGenerator(test_image_info_list, transform, cfg.input_shape)
+    gen = TestGenerator(test_image_info_list, transform, cfg.input_shape, args.batch_size)
     # 加载模型
     m = ssd_model(cfg.feature_fn, cfg.input_shape, cfg.num_classes, cfg.specs,
                   score_threshold=0.01,
@@ -51,7 +51,6 @@ def main(args):
     s_time = time.time()
     boxes, scores, class_ids = m.predict_generator(
         gen,
-        steps=gen.size,
         verbose=1,
         workers=4,
         use_multiprocessing=False)
@@ -60,10 +59,10 @@ def main(args):
     predict_scores = [np_utils.remove_pad(score)[:, 0] for score in scores]
     predict_labels = [np_utils.remove_pad(label)[:, 0] for label in class_ids]
     # 还原检测边框到
-    predict_boxes = recover_detect_boxes(test_image_info_list,boxes)
+    predict_boxes = recover_detect_boxes(test_image_info_list, boxes)
     # 以下是评估过程
-    annotations = eval_utils.get_annotations(test_image_info_list, config.NUM_CLASSES)
-    detections = eval_utils.get_detections(predict_boxes, predict_scores, predict_labels, config.NUM_CLASSES)
+    annotations = eval_utils.get_annotations(test_image_info_list, cfg.num_classes)
+    detections = eval_utils.get_detections(predict_boxes, predict_scores, predict_labels, cfg.num_classes)
     average_precisions = eval_utils.voc_eval(annotations, detections, iou_threshold=0.5, use_07_metric=True)
     print("ap:{}".format(average_precisions))
     # 求mean ap 去除背景类
@@ -97,6 +96,7 @@ if __name__ == '__main__':
     parse = argparse.ArgumentParser()
     parse.add_argument("--weight_path", type=str, default=None, help="weight path")
     parse.add_argument("--data_set", type=str, default='test', help="dataset to evaluate")
+    parse.add_argument("--batch_size", type=int, default=1, help="batch size")
     parse.add_argument("--eval_num", type=int, default=1000000, help="number of images to evaluate")
     arguments = parse.parse_args(sys.argv[1:])
     main(arguments)
