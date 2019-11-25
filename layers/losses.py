@@ -9,24 +9,52 @@ import tensorflow as tf
 from tensorflow.python.keras import layers
 
 
-def cls_loss(predict_cls_logits, true_cls_ids, anchors_tag):
+def hard_negative_mining(loss, anchors_tag, negatives_per_positive, min_negatives_per_image):
+    """
+    困难负样本挖掘
+    :param loss: [num_anchors]
+    :param anchors_tag: [num_anchors] 1：正样本，-1：负样本，0: ignore
+    :param negatives_per_positive:
+    :param min_negatives_per_image:
+    :return:
+    """
+    positive_loss = tf.gather_nd(loss, tf.where(anchors_tag == 1))
+    negative_loss = tf.gather_nd(loss, tf.where(anchors_tag == -1))
+    num_negatives = tf.maximum(tf.size(positive_loss) * negatives_per_positive,
+                               min_negatives_per_image)
+
+    negative_loss = tf.sort(negative_loss, axis=0, direction='DESCENDING')
+    negative_loss = negative_loss[:num_negatives]
+    total_loss = tf.concat([positive_loss, negative_loss], axis=0)
+    return tf.reduce_mean(total_loss)
+
+
+def cls_loss(predict_cls_logits, true_cls_ids, anchors_tag,
+             negatives_per_positive, min_negatives_per_image):
     """
     分类损失
     :param predict_cls_logits: 预测的anchors类别，[batch_size,num_anchors,num_classes]
     :param true_cls_ids:实际的anchors类别，[batch_size,num_anchors]
     :param anchors_tag: [batch_size,num_anchors]  1：正样本，-1：负样本，0: ignore
+    :param negatives_per_positive:
+    :param min_negatives_per_image:
     :return:
     """
-    indices = tf.where(tf.not_equal(anchors_tag, 0.))
-    predict_cls_logits = tf.gather_nd(predict_cls_logits, indices)  # [N,num_classes]
-    true_cls_ids = tf.gather_nd(true_cls_ids, indices)  # [N]
-    # 转为onehot编码
-    num_classes = tf.shape(predict_cls_logits)[-1]
-    true_cls_ids = tf.one_hot(tf.cast(true_cls_ids, tf.int32), depth=num_classes)  # [N,num_classes]
+    # indices = tf.where(tf.not_equal(anchors_tag, 0.))
+    # predict_cls_logits = tf.gather_nd(predict_cls_logits, indices)  # [N,num_classes]
+    # true_cls_ids = tf.gather_nd(true_cls_ids, indices)  # [N]
+    # # 转为onehot编码
+    # num_classes = tf.shape(predict_cls_logits)[-1]
+    # true_cls_ids = tf.one_hot(tf.cast(true_cls_ids, tf.int32), depth=num_classes)  # [N,num_classes]
 
     # 交叉熵损失函数
-    losses = tf.nn.softmax_cross_entropy_with_logits_v2(
-        labels=true_cls_ids, logits=predict_cls_logits)
+    losses = tf.nn.sparse_softmax_cross_entropy_with_logits(
+        labels=true_cls_ids, logits=predict_cls_logits)  # [batch_size,num_anchors]
+    options = {"negatives_per_positive": negatives_per_positive,
+               "min_negatives_per_image": min_negatives_per_image}
+    losses = tf.map_fn(fn=lambda x: hard_negative_mining(*x, **options),
+                       elems=[losses, anchors_tag],
+                       dtype=tf.float32)
     losses = tf.reduce_mean(losses)
     return losses
 

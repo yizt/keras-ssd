@@ -21,7 +21,7 @@ class Config(object):
 
     # gt boxes
     max_gt_num = 100
-    #
+    # anchors,正负样本
     positive_iou_threshold = 0.5
     negative_iou_threshold = 0.4
     specs = [FeatureSpec(19, 16, 60, 105, [2, 1 / 2, 3, 1 / 3]),
@@ -30,6 +30,8 @@ class Config(object):
              FeatureSpec(3, 100, 195, 240, [2, 1 / 2, 3, 1 / 3]),
              FeatureSpec(2, 150, 240, 285, [2, 1 / 2, 3, 1 / 3]),
              FeatureSpec(1, 300, 285, 330, [2, 1 / 2])]
+    negatives_per_positive = 3
+    min_negatives_per_image = 5
 
     # detect boxes
     max_detections_per_class = 100
@@ -78,7 +80,7 @@ class VocConfig(Config):
     voc_path = '/sdb/tmp/open_dataset/VOCdevkit'
 
     base_model_name = 'mobilenetv2'
-    pretrained_weight_path = ''
+    pretrained_weight_path = '/sdb/tmp/pretrained_model/mobilenet_v2_weights_tf_dim_ordering_tf_kernels_1.0_224_no_top.h5'
 
 
 cfg = VocConfig()

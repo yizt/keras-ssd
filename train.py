@@ -67,7 +67,8 @@ def main(args):
     print("test_img_info:{}".format(len(test_img_info)))
 
     m = ssd_model(cfg.feature_fn, cfg.input_shape, cfg.num_classes, cfg.specs, cfg.max_gt_num,
-                  cfg.positive_iou_threshold, cfg.negative_iou_threshold)
+                  cfg.positive_iou_threshold, cfg.negative_iou_threshold,
+                  cfg.negatives_per_positive, cfg.min_negatives_per_image)
 
     # 加载预训练模型
     init_epoch = args.init_epoch

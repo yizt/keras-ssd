@@ -79,6 +79,7 @@ def rgr_headers(feature_list, num_anchors_list):
 
 def ssd_model(feature_fn, input_shape, num_classes, specs: List[FeatureSpec],
               max_gt_num=100, positive_iou_threshold=0.5, negative_iou_threshold=0.4,
+              negatives_per_positive=3, min_negatives_per_image=5,
               score_threshold=0.5, iou_threshold=0.3, max_detections_per_class=100,
               max_total_detections=100, stage='train'):
     image_input = layers.Input(shape=input_shape, name='input_image')
@@ -106,7 +107,9 @@ def ssd_model(feature_fn, input_shape, num_classes, specs: List[FeatureSpec],
         #                                                     deltas_list, anchors_tag_list])
         deltas, cls_ids, anchors_tag = SSDTarget(anchors, positive_iou_threshold, negative_iou_threshold,
                                                  name='ssd_target')([gt_boxes, gt_class_ids])
-        cls_losses = layers.Lambda(lambda x: cls_loss(*x),
+        cls_losses = layers.Lambda(lambda x: cls_loss(*x,
+                                                      negatives_per_positive=negatives_per_positive,
+                                                      min_negatives_per_image=min_negatives_per_image),
                                    name='class_loss')([predict_logits, cls_ids, anchors_tag])
         rgr_losses = layers.Lambda(lambda x: regress_loss(*x),
                                    name='bbox_loss')([predict_deltas, deltas, anchors_tag])
@@ -128,10 +131,10 @@ def ssd_model(feature_fn, input_shape, num_classes, specs: List[FeatureSpec],
 def main():
     from config import cfg
 
-    model = ssd_model(cfg.feature_fn, (300, 300, 3), cfg.num_classes,
+    model = ssd_model(cfg.feature_fn, cfg.input_shape, cfg.num_classes,
                       cfg.specs, stage='train')
     model.summary()
-    model = ssd_model(cfg.feature_fn, (300, 300, 3), cfg.num_classes,
+    model = ssd_model(cfg.feature_fn, cfg.input_shape, cfg.num_classes,
                       cfg.specs, stage='test')
     model.summary()
 
