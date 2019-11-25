@@ -75,7 +75,7 @@ class EvalTransform:
             ToPercentCoordinates(),
             Resize(size, size),
             SubtractMeans(mean),
-            lambda img, boxes=None, labels=None: (img / std, boxes, labels),
+            lambda img, boxes=None, labels=None: (img / std, boxes, labels)
             # ToTensor(),
         ])
 
@@ -88,7 +88,7 @@ class PredictionTransform:
         self.transform = Compose([
             Resize(size, size),
             SubtractMeans(mean),
-            lambda img, boxes=None, labels=None: (img / std, boxes, labels),
+            lambda img: img / std
             # ToTensor()
         ])
 
@@ -103,6 +103,10 @@ def main():
     print(im.shape)
     trans = TrainAugmentation(300)
     img, _, _ = trans(im, np.array([[10., 20., 150., 200.]]), np.array([1]))
+    print(img.shape)
+
+    trans = PredictionTransform(300)
+    img = trans(im)
     print(img.shape)
 
 
