@@ -18,8 +18,8 @@ def hard_negative_mining(loss, anchors_tag, negatives_per_positive, min_negative
     :param min_negatives_per_image:
     :return:
     """
-    positive_loss = tf.gather_nd(loss, tf.where(anchors_tag == 1))
-    negative_loss = tf.gather_nd(loss, tf.where(anchors_tag == -1))
+    positive_loss = tf.gather_nd(loss, tf.where(tf.equal(anchors_tag, 1)))
+    negative_loss = tf.gather_nd(loss, tf.where(tf.equal(anchors_tag, -1)))
     num_negatives = tf.maximum(tf.size(positive_loss) * negatives_per_positive,
                                min_negatives_per_image)
 
