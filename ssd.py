@@ -115,6 +115,12 @@ def ssd_model(feature_fn, input_shape, num_classes, specs: List[FeatureSpec],
                                    name='bbox_loss')([predict_deltas, deltas, anchors_tag])
 
         m = Model([image_input, gt_boxes, gt_class_ids], [cls_losses, rgr_losses])
+    elif stage == 'debug':
+        gt_boxes = layers.Input(shape=(max_gt_num, 5), dtype='float32', name='input_gt_boxes')
+        gt_class_ids = layers.Input(shape=(max_gt_num, 2), dtype='int32', name='input_gt_class_ids')
+        deltas, cls_ids, anchors_tag = SSDTarget(anchors, positive_iou_threshold, negative_iou_threshold,
+                                                 name='ssd_target')([gt_boxes, gt_class_ids])
+        m = Model([image_input, gt_boxes, gt_class_ids], [cls_ids, anchors_tag, predict_logits])
     else:
         boxes, class_ids, scores = DetectBox(anchors,
                                              score_threshold=score_threshold,
@@ -131,11 +137,14 @@ def ssd_model(feature_fn, input_shape, num_classes, specs: List[FeatureSpec],
 def main():
     from config import cfg
 
+    # model = ssd_model(cfg.feature_fn, cfg.input_shape, cfg.num_classes,
+    #                   cfg.specs, stage='train')
+    # model.summary()
+    # model = ssd_model(cfg.feature_fn, cfg.input_shape, cfg.num_classes,
+    #                   cfg.specs, stage='test')
+    # model.summary()
     model = ssd_model(cfg.feature_fn, cfg.input_shape, cfg.num_classes,
-                      cfg.specs, stage='train')
-    model.summary()
-    model = ssd_model(cfg.feature_fn, cfg.input_shape, cfg.num_classes,
-                      cfg.specs, stage='test')
+                      cfg.specs, stage='debug')
     model.summary()
 
 
