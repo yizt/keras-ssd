@@ -59,7 +59,7 @@ def detect_boxes(boxes, class_logits, score_threshold, iou_threshold, max_detect
     """
     # 类别得分和预测类别
     class_scores = tf.reduce_max(tf.nn.softmax(class_logits, axis=-1), axis=-1)  # [num_boxes]
-    class_ids = tf.argmax(class_logits, axis=-1) + 1  # [num_boxes]
+    class_ids = tf.argmax(class_logits, axis=-1)  # [num_boxes]
     # 过滤背景类别class_id=0和低于阈值的
     keep = tf.where(tf.logical_and(class_ids > 0,
                                    class_scores >= score_threshold))
