@@ -5,15 +5,16 @@
  @Author  : yizuotian
  @Description    :
 """
-import numpy as np
 from collections import namedtuple
 from typing import List
+
+import numpy as np
 
 FeatureSpec = namedtuple('FeatureSpec',
                          ['feature_size', 'stride', 'min_size', 'max_size', 'aspect_ratios'])
 
 
-def generate_anchors(specs: List[FeatureSpec]):
+def generate_anchors(specs: List[FeatureSpec], image_size):
     """
 
     :param specs:
@@ -25,6 +26,7 @@ def generate_anchors(specs: List[FeatureSpec]):
             FeatureSpec(2, 150, 240, 285, [2,1/2,3,1/3]),
             FeatureSpec(1, 300, 285, 330, [2,1/2,3,1/3])
         ]
+    :param image_size:
     :return anchors: [N,(y1,x1,y2,x2)]
     """
     anchors = []
@@ -35,6 +37,7 @@ def generate_anchors(specs: List[FeatureSpec]):
                                            spec.max_size,
                                            spec.aspect_ratios))
     anchors = np.concatenate(anchors, axis=0)
+    anchors = anchors / image_size
     return anchors
 
 
@@ -82,6 +85,6 @@ if __name__ == '__main__':
                               FeatureSpec(5, 60, 150, 195, [2, 1 / 2, 3, 1 / 3]),
                               FeatureSpec(3, 100, 195, 240, [2, 1 / 2, 3, 1 / 3]),
                               FeatureSpec(2, 150, 240, 285, [2, 1 / 2, 3, 1 / 3]),
-                              FeatureSpec(1, 300, 285, 330, [2, 1 / 2])])
+                              FeatureSpec(1, 300, 285, 330, [2, 1 / 2])],300)
     print(achrs)
     print(achrs.shape)

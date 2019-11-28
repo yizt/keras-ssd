@@ -5,12 +5,14 @@
  @Author  : yizuotian
  @Description    :
 """
-from tensorflow.python.keras import backend, layers, Model
-from utils.anchor import generate_anchors, FeatureSpec
-from layers.target import SSDTarget
-from layers.losses import regress_loss, cls_loss
-from layers.detect_boxes import DetectBox
 from typing import List
+
+from tensorflow.python.keras import backend, layers, Model
+
+from layers.detect_boxes import DetectBox
+from layers.losses import regress_loss, cls_loss
+from layers.target import SSDTarget
+from utils.anchor import generate_anchors, FeatureSpec
 
 
 def seperable_conv2d(x, filters, name, kernel_size=1, stride=1, padding='same'):
@@ -84,7 +86,7 @@ def ssd_model(feature_fn, input_shape, num_classes, specs: List[FeatureSpec],
               max_total_detections=100, stage='train'):
     image_input = layers.Input(shape=input_shape, name='input_image')
 
-    anchors = generate_anchors(specs)
+    anchors = generate_anchors(specs, input_shape[0])
     feature_list = feature_fn(image_input)
 
     num_anchors_list = [len(spec.aspect_ratios) + 2 for spec in specs]
