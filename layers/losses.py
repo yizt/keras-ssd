@@ -18,15 +18,18 @@ def hard_negative_mining(loss, anchors_tag, negatives_per_positive, min_negative
     :param min_negatives_per_image:
     :return:
     """
-    positive_loss = tf.gather_nd(loss, tf.where(tf.equal(anchors_tag, 1)))
-    negative_loss = tf.gather_nd(loss, tf.where(tf.equal(anchors_tag, -1)))
-    num_negatives = tf.maximum(tf.size(positive_loss) * negatives_per_positive,
+    positive_loss = tf.gather_nd(loss, tf.where(tf.equal(anchors_tag, 1.)))
+    negative_loss = tf.gather_nd(loss, tf.where(tf.equal(anchors_tag, -1.)))
+
+    num_positives = tf.size(positive_loss)
+    num_negatives = tf.maximum(num_positives * negatives_per_positive,
                                min_negatives_per_image)
 
     negative_loss = tf.sort(negative_loss, axis=0, direction='DESCENDING')
     negative_loss = negative_loss[:num_negatives]
+
     total_loss = tf.concat([positive_loss, negative_loss], axis=0)
-    return tf.reduce_mean(total_loss)
+    return [tf.reduce_sum(total_loss), tf.cast(num_positives, tf.float32)]
 
 
 def cls_loss(predict_cls_logits, true_cls_ids, anchors_tag,
@@ -46,16 +49,16 @@ def cls_loss(predict_cls_logits, true_cls_ids, anchors_tag,
     # # 转为onehot编码
     # num_classes = tf.shape(predict_cls_logits)[-1]
     # true_cls_ids = tf.one_hot(tf.cast(true_cls_ids, tf.int32), depth=num_classes)  # [N,num_classes]
-
+    # losses = tf.nn.softmax_cross_entropy_with_logits_v2(labels=true_cls_ids, logits=predict_cls_logits)
     # 交叉熵损失函数
     losses = tf.nn.sparse_softmax_cross_entropy_with_logits(
         labels=true_cls_ids, logits=predict_cls_logits)  # [batch_size,num_anchors]
     options = {"negatives_per_positive": negatives_per_positive,
                "min_negatives_per_image": min_negatives_per_image}
-    losses = tf.map_fn(fn=lambda x: hard_negative_mining(*x, **options),
-                       elems=[losses, anchors_tag],
-                       dtype=tf.float32)
-    losses = tf.reduce_mean(losses)
+    losses, num_pos = tf.map_fn(fn=lambda x: hard_negative_mining(*x, **options),
+                                elems=[losses, anchors_tag],
+                                dtype=[tf.float32, tf.float32])
+    losses = tf.reduce_sum(losses) / tf.maximum(1., tf.reduce_sum(num_pos))
     return losses
 
 
