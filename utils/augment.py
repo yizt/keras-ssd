@@ -9,7 +9,6 @@ import cv2
 import numpy as np
 from utils import box_utils
 import random
-import torch
 
 
 def center_filter(gt_boxes, rect):
@@ -502,10 +501,10 @@ class ToPercentCoordinates(object):
         return image, gt_boxes, labels
 
 
-class ToTensor(object):
-    def __call__(self, image, boxes=None, labels=None):
-        image = torch.from_numpy(image.astype(np.float32)).permute(2, 0, 1)  # [C,H,W]
-        return Identity()(image, boxes, labels)
+# class ToTensor(object):
+#     def __call__(self, image, boxes=None, labels=None):
+#         image = torch.from_numpy(image.astype(np.float32)).permute(2, 0, 1)  # [C,H,W]
+#         return Identity()(image, boxes, labels)
 
 
 class Compose(object):
