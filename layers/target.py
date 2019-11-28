@@ -46,10 +46,10 @@ def target_graph(gt_boxes, gt_class_ids, anchors, num_anchors, positive_iou_thre
                                     -1 * tf.ones_like(anchors_iou_max),
                                     tf.zeros_like(anchors_iou_max)))
     # 越界anchors忽略
-    keep_mask = tf.logical_and(anchors_tag[:, 0] >= 0.,
-                               tf.logical_and(anchors_tag[:, 1] >= 0.,
-                                              tf.logical_and(anchors_tag[:, 2] < 1.,
-                                                             anchors_tag[:, 3] < 1.)))
+    keep_mask = tf.logical_and(anchors[:, 0] >= 0.,
+                               tf.logical_and(anchors[:, 1] >= 0.,
+                                              tf.logical_and(anchors[:, 2] < 1.,
+                                                             anchors[:, 3] < 1.)))
     anchors_tag = tf.where(keep_mask, anchors_tag, tf.zeros_like(anchors_tag))
     # 回归目标
     deltas = regress_target(anchors, match_gt_boxes)
