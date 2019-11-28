@@ -9,12 +9,14 @@
 import argparse
 import sys
 import time
+
+import cv2
 import numpy as np
+
 from config import cfg
+from ssd import ssd_model
 from utils import np_utils
 from utils.preprocess import PredictionTransform
-from ssd import ssd_model
-import cv2
 
 
 def main(args):
@@ -49,9 +51,9 @@ def main(args):
     class_ids = np_utils.remove_pad(class_ids[0])[:, 0]
     boxes = np_utils.remove_pad(boxes[0])
     # 还原检测边框到
-    boxes = np.clip(boxes, 0, cfg.image_size)
-    boxes[:, [0, 2]] *= h / cfg.image_size
-    boxes[:, [1, 3]] *= w / cfg.image_size
+    boxes = np.clip(boxes, 0, 1)
+    boxes[:, [0, 2]] *= h
+    boxes[:, [1, 3]] *= w
 
     # 画边框
     for box, score, class_id in zip(boxes.astype(np.int32), scores, class_ids):

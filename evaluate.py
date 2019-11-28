@@ -9,14 +9,16 @@
 import argparse
 import sys
 import time
+from typing import List
+
 import numpy as np
-from datasets.dataset import VocDataset, ImageInfo
+
 from config import cfg
-from utils import np_utils, eval_utils
+from datasets.dataset import VocDataset, ImageInfo
 from ssd import ssd_model
+from utils import np_utils, eval_utils
 from utils.generator import TestGenerator
 from utils.preprocess import PredictionTransform
-from typing import List
 
 
 def main(args):
@@ -79,15 +81,15 @@ def recover_detect_boxes(image_info_list: List[ImageInfo], boxes):
     :return:
     """
     boxes_list = []
-    boxes = np.clip(boxes, 0, cfg.image_size)  # 边框裁剪到图像内
+    boxes = np.clip(boxes, 0, 1)  # 边框裁剪到图像内
     for image_info, box in zip(image_info_list, boxes):
         box = np_utils.remove_pad(box)
         if len(box) == 0:
             boxes_list.append(box)
         else:
             h, w = image_info.height, image_info.width
-            box[:, [0, 2]] *= h / cfg.image_size
-            box[:, [1, 3]] *= w / cfg.image_size
+            box[:, [0, 2]] *= h
+            box[:, [1, 3]] *= w
             boxes_list.append(box)
     return boxes_list
 
