@@ -8,30 +8,31 @@
 
 import argparse
 import sys
-import os
+
 import tensorflow as tf
-import tensorflow.python.keras as keras
+from tensorflow.python.keras import backend
 from tensorflow.python.keras.callbacks import TensorBoard, ModelCheckpoint, LearningRateScheduler
+
 from config import cfg
 from datasets.dataset import VocDataset
-from utils.generator import Generator
 from ssd import ssd_model
-from utils.preprocess import TrainAugmentation, EvalTransform
 from utils import model_utils
+from utils.generator import Generator
+from utils.preprocess import TrainAugmentation, EvalTransform
 
 
 def set_gpu_growth():
     config = tf.ConfigProto(allow_soft_placement=True)  # because no supported kernel for GPU devices is available
     config.gpu_options.allow_growth = True
     session = tf.Session(config=config)
-    keras.backend.set_session(session)
+    backend.set_session(session)
 
 
 def lr_schedule(total_epoch, lr):
     def _lr_fn(epoch):
-        if epoch < total_epoch * 0.25:
+        if epoch < total_epoch * 0.6:
             return lr
-        elif epoch < total_epoch * 0.75:
+        elif epoch < total_epoch * 0.8:
             return lr / 10.
         else:
             return lr / 100
@@ -47,9 +48,10 @@ def get_call_back(epochs, lr):
     checkpoint = ModelCheckpoint(filepath='/tmp/ssd-' + cfg.base_model_name + '.{epoch:03d}.h5',
                                  monitor='val_loss',
                                  verbose=1,
-                                 save_best_only=False,
-                                 save_weights_only=True,
-                                 save_freq='epoch')
+                                 save_best_only=True,
+                                 save_weights_only=True
+                                 # save_freq='epoch'
+                                 )
 
     scheduler = LearningRateScheduler(lr_schedule(epochs, lr))
 
@@ -85,7 +87,7 @@ def main(args):
                           cfg.max_gt_num)
     # 生成器
     val_trans = EvalTransform(cfg.image_size, cfg.mean_pixel, cfg.std)
-    val_gen = Generator(test_img_info[:500],
+    val_gen = Generator(test_img_info,
                         val_trans,
                         cfg.input_shape,
                         args.batch_size,
@@ -97,11 +99,9 @@ def main(args):
     # 训练
     m.fit_generator(train_gen,
                     epochs=args.epochs,
-                    steps_per_epoch=len(train_gen),
                     verbose=1,
                     initial_epoch=init_epoch,
                     validation_data=val_gen,
-                    validation_steps=len(val_gen),
                     use_multiprocessing=False,
                     workers=10,
                     callbacks=get_call_back(args.epochs, args.lr))

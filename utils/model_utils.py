@@ -7,8 +7,8 @@ Created on 2019/04/12 下午9:42
 模型工具类
 
 """
-import tensorflow.python.keras as keras
 import tensorflow as tf
+from tensorflow.python.keras import optimizers, regularizers
 
 
 def compile(keras_model, lr, momentum, clipnorm, weight_decay, loss_weights={}):
@@ -23,7 +23,7 @@ def compile(keras_model, lr, momentum, clipnorm, weight_decay, loss_weights={}):
     :return:
     """
     # 优化目标
-    optimizer = keras.optimizers.SGD(
+    optimizer = optimizers.SGD(
         lr=lr, momentum=momentum,
         clipnorm=clipnorm)
     # 增加损失函数，首先清除之前的，防止重复
@@ -41,7 +41,7 @@ def compile(keras_model, lr, momentum, clipnorm, weight_decay, loss_weights={}):
     # 增加L2正则化
     # 跳过批标准化层的 gamma 和 beta 权重
     reg_losses = [
-        keras.regularizers.l2(weight_decay)(w) / tf.cast(tf.size(w), tf.float32)
+        regularizers.l2(weight_decay)(w) / tf.cast(tf.size(w), tf.float32)
         for w in keras_model.trainable_weights
         if 'gamma' not in w.name and 'beta' not in w.name]
     keras_model.add_loss(tf.add_n(reg_losses))
