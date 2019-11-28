@@ -56,11 +56,12 @@ def main(args):
     boxes[:, [1, 3]] *= w
 
     # 画边框
+    class_names = list(cfg.class_mapping.keys())
     for box, score, class_id in zip(boxes.astype(np.int32), scores, class_ids):
         y1, x1, y2, x2 = box
-        text = '{}:{:03f}'.format(list(cfg.class_mapping.keys()[class_id]))
+        text = '{}:{:03f}'.format(class_names[class_id], score)
         cv2.putText(im, text, (x1 + 8, y2 + 20), cv2.FONT_HERSHEY_PLAIN,
-                    1.5, (0, 255, 0), thickness=1)
+                    0.75, (0, 255, 0), thickness=1)
         cv2.rectangle(im, (x1, y1), (x2, y2), (0, 0, 255), 2)
 
     cv2.imwrite(args.result_path, im)
