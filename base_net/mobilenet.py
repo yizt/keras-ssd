@@ -5,8 +5,8 @@
  @Author  : yizuotian
  @Description    :
 """
-from tensorflow.python.keras import layers, Model, Input, backend
 from keras_applications import correct_pad
+from tensorflow.python.keras import layers, Model, Input, backend
 
 
 def _make_divisible(v, divisor, min_value=None):
@@ -117,6 +117,70 @@ def mobilenet_v2_features(img_input, alpha=1.):
     f1, f2 = mobilenet_v2_base(img_input, alpha)
     f3, f4, f5, f6 = extra_features(f2, alpha)
     return f1, f2, f3, f4, f5, f6
+
+
+def cls_headers(feature_list, num_anchors_list, num_classes):
+    headers = []
+    for i, (feature, num_anchors) in enumerate(zip(feature_list, num_anchors_list)):
+        header = seperable_conv2d(feature, num_anchors * num_classes,
+                                  'cls_header_{}'.format(i), kernel_size=3)
+        # 打平
+        header = layers.Reshape(target_shape=(-1, num_classes),
+                                name='cls_header_flatten_{}'.format(i))(header)
+        headers.append(header)
+
+    # 拼接所有header
+    headers = layers.Concatenate(axis=1, name='cls_header_concat')(headers)  # [B,num_anchors,num_classes]
+    return headers
+
+
+def rgr_headers(feature_list, num_anchors_list):
+    headers = []
+    for i, (feature, num_anchors) in enumerate(zip(feature_list, num_anchors_list)):
+        header = seperable_conv2d(feature, num_anchors * 4, 'rgr_header_{}'.format(i), kernel_size=3)
+        # 打平
+        header = layers.Reshape(target_shape=(-1, 4),
+                                name='rgr_header_flatten_{}'.format(i))(header)
+        headers.append(header)
+    # 拼接所有header
+    headers = layers.Concatenate(axis=1, name='rgr_header_concat')(headers)  # [B,num_anchors,4]
+    return headers
+
+
+def seperable_conv2d(x, filters, name, kernel_size=1, stride=1, padding='same'):
+    """
+
+    :param x:
+    :param filters:
+    :param name:
+    :param kernel_size:
+    :param stride:
+    :param padding:
+    :return:
+    """
+    prefix = name
+    channel_axis = 1 if backend.image_data_format() == 'channels_first' else -1
+    x = layers.DepthwiseConv2D(kernel_size=kernel_size,
+                               strides=stride,
+                               activation=None,
+                               use_bias=False,
+                               padding=padding,
+                               name=prefix + 'depthwise')(x)
+    x = layers.BatchNormalization(axis=channel_axis,
+                                  epsilon=1e-3,
+                                  momentum=0.999,
+                                  name=prefix + 'depthwise_BN')(x)
+
+    x = layers.ReLU(6., name=prefix + 'depthwise_relu')(x)
+
+    # Project
+    x = layers.Conv2D(filters,
+                      kernel_size=1,
+                      padding='same',
+                      use_bias=False,
+                      activation=None,
+                      name=prefix + 'project')(x)
+    return x
 
 
 def _inverted_res_block(inputs, expansion, stride, alpha, filters, block_id):

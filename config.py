@@ -5,8 +5,8 @@
  @Author  : yizuotian
  @Description    :
 """
+from base_net import mobilenet, densenet
 from utils.anchor import FeatureSpec
-from base_net.mobilenet import mobilenet_v2_features
 
 
 class Config(object):
@@ -24,14 +24,20 @@ class Config(object):
     # anchors,正负样本
     positive_iou_threshold = 0.5
     negative_iou_threshold = 0.4
-    specs = [FeatureSpec(19, 16, 60, 105, [2, 1 / 2, 3, 1 / 3]),
-             FeatureSpec(10, 30, 105, 150, [2, 1 / 2, 3, 1 / 3]),
-             FeatureSpec(5, 60, 150, 195, [2, 1 / 2, 3, 1 / 3]),
-             FeatureSpec(3, 100, 195, 240, [2, 1 / 2, 3, 1 / 3]),
-             FeatureSpec(2, 150, 240, 285, [2, 1 / 2, 3, 1 / 3]),
-             FeatureSpec(1, 300, 285, 330, [2, 1 / 2])]
+    # specs = [FeatureSpec(19, 16, 60, 105, [2, 1 / 2, 3, 1 / 3]),
+    #          FeatureSpec(10, 30, 105, 150, [2, 1 / 2, 3, 1 / 3]),
+    #          FeatureSpec(5, 60, 150, 195, [2, 1 / 2, 3, 1 / 3]),
+    #          FeatureSpec(3, 100, 195, 240, [2, 1 / 2, 3, 1 / 3]),
+    #          FeatureSpec(2, 150, 240, 285, [2, 1 / 2, 3, 1 / 3]),
+    #          FeatureSpec(1, 300, 285, 330, [2, 1 / 2])]
+    specs = [FeatureSpec(19, 16, 28, 65, [2, 1 / 2, 3, 1 / 3]),
+             FeatureSpec(10, 30, 65, 90, [2, 1 / 2, 3, 1 / 3]),
+             FeatureSpec(5, 60, 90, 140, [2, 1 / 2, 3, 1 / 3]),
+             FeatureSpec(3, 100, 140, 165, [2, 1 / 2, 3, 1 / 3]),
+             FeatureSpec(2, 150, 165, 245, [2, 1 / 2, 3, 1 / 3]),
+             FeatureSpec(1, 300, 245, 285, [2, 1 / 2])]
     negatives_per_positive = 3
-    min_negatives_per_image = 5
+    min_negatives_per_image = 0
 
     # detect boxes
     max_detections_per_class = 100
@@ -50,7 +56,15 @@ class Config(object):
 
     @classmethod
     def feature_fn(cls, *args, **kwargs):
-        return mobilenet_v2_features(*args, **kwargs)
+        return mobilenet.mobilenet_v2_features(*args, **kwargs)
+
+    @classmethod
+    def cls_head_fn(cls, *args, **kwargs):
+        return mobilenet.cls_headers(*args, **kwargs)
+
+    @classmethod
+    def rgr_head_fn(cls, *args, **kwargs):
+        return mobilenet.rgr_headers(*args, **kwargs)
 
 
 class VocConfig(Config):
@@ -80,7 +94,37 @@ class VocConfig(Config):
     voc_path = '/sdb/tmp/open_dataset/VOCdevkit'
 
     base_model_name = 'mobilenetv2'
-    pretrained_weight_path = '/sdb/tmp/pretrained_model/mobilenet_v2_weights_tf_dim_ordering_tf_kernels_1.0_224_no_top.h5'
+    pretrained_weight_path = '/sdb/tmp/pretrained_model/mobilenet_v2_1.0_224.h5'
 
 
-cfg = VocConfig()
+class VocDenseNetConfig(VocConfig):
+    specs = [FeatureSpec(18, 16, 28, 65, [2, 1 / 2, 3, 1 / 3]),
+             FeatureSpec(9, 30, 65, 90, [2, 1 / 2, 3, 1 / 3]),
+             FeatureSpec(5, 60, 90, 140, [2, 1 / 2, 3, 1 / 3]),
+             FeatureSpec(3, 100, 140, 165, [2, 1 / 2, 3, 1 / 3]),
+             FeatureSpec(2, 150, 165, 245, [2, 1 / 2, 3, 1 / 3]),
+             FeatureSpec(1, 300, 245, 285, [2, 1 / 2])]
+
+    @classmethod
+    def feature_fn(cls, *args, **kwargs):
+        return densenet.densenet_features(*args, **kwargs)
+
+    @classmethod
+    def cls_head_fn(cls, *args, **kwargs):
+        return mobilenet.cls_headers(*args, **kwargs)
+
+    @classmethod
+    def rgr_head_fn(cls, *args, **kwargs):
+        return mobilenet.rgr_headers(*args, **kwargs)
+
+    base_model_name = 'densenet'
+    pretrained_weight_path = '/sdb/tmp/pretrained_model/densenet121_weights_tf_dim_ordering_tf_kernels.h5'
+
+
+class MacConfig(VocConfig):
+    voc_path = '/Users/yizuotian/dataset/VOCdevkit/'
+    # pretrained_weight_path = '/Users/yizuotian/pretrained_model/mobilenet_v2_weights_tf_dim_ordering_tf_kernels_1.0_224.h5'
+    pretrained_weight_path = 'mobilenet_v2_1.0_224.h5'
+
+
+cfg = VocDenseNetConfig()
