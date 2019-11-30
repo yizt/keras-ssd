@@ -8,10 +8,10 @@
 
 import argparse
 import sys
-import time
 
 import cv2
 import numpy as np
+import time
 
 from config import cfg
 from ssd import ssd_model
@@ -34,7 +34,8 @@ def main(args):
     image = trans(im[:, :, ::-1])
 
     # 加载模型
-    m = ssd_model(cfg.feature_fn, cfg.input_shape, cfg.num_classes, cfg.specs,
+    m = ssd_model(cfg.feature_fn, cfg.cls_head_fn, cfg.rgr_head_fn,
+                  cfg.input_shape, cfg.num_classes, cfg.specs,
                   score_threshold=cfg.score_threshold,
                   iou_threshold=cfg.iou_threshold,
                   max_detections_per_class=cfg.max_detections_per_class,

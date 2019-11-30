@@ -8,10 +8,10 @@
 
 import argparse
 import sys
-import time
 from typing import List
 
 import numpy as np
+import time
 
 from config import cfg
 from datasets.dataset import VocDataset, ImageInfo
@@ -41,7 +41,8 @@ def main(args):
     transform = PredictionTransform(cfg.image_size, cfg.mean_pixel, cfg.std)
     gen = TestGenerator(test_image_info_list, transform, cfg.input_shape, args.batch_size)
     # 加载模型
-    m = ssd_model(cfg.feature_fn, cfg.input_shape, cfg.num_classes, cfg.specs,
+    m = ssd_model(cfg.feature_fn, cfg.cls_head_fn, cfg.rgr_head_fn,
+                  cfg.input_shape, cfg.num_classes, cfg.specs,
                   score_threshold=0.01,
                   iou_threshold=cfg.iou_threshold,
                   max_detections_per_class=cfg.max_detections_per_class,

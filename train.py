@@ -8,8 +8,9 @@
 
 import argparse
 import sys
-import time
+
 import tensorflow as tf
+import time
 from tensorflow.python.keras import backend
 from tensorflow.python.keras.callbacks import TensorBoard, ModelCheckpoint, LearningRateScheduler
 
@@ -69,7 +70,8 @@ def main(args):
     test_img_info = [info for info in dataset.get_image_info_list() if info.type == 'test']  # 测试集
     print("test_img_info:{}".format(len(test_img_info)))
 
-    m = ssd_model(cfg.feature_fn, cfg.input_shape, cfg.num_classes, cfg.specs, cfg.max_gt_num,
+    m = ssd_model(cfg.feature_fn, cfg.cls_head_fn, cfg.rgr_head_fn, cfg.input_shape,
+                  cfg.num_classes, cfg.specs, cfg.max_gt_num,
                   cfg.positive_iou_threshold, cfg.negative_iou_threshold,
                   cfg.negatives_per_positive, cfg.min_negatives_per_image)
 
