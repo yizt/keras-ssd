@@ -8,7 +8,7 @@
 
 import argparse
 import sys
-
+import time
 import tensorflow as tf
 from tensorflow.python.keras import backend
 from tensorflow.python.keras.callbacks import TensorBoard, ModelCheckpoint, LearningRateScheduler
@@ -55,7 +55,8 @@ def get_call_back(epochs, lr):
 
     scheduler = LearningRateScheduler(lr_schedule(epochs, lr))
 
-    log = TensorBoard(log_dir='log')
+    log = TensorBoard(log_dir='log-{}-{}'.format(cfg.base_model_name,
+                                                 time.strftime("%Y%m%d", time.localtime())))
     return [checkpoint, scheduler, log]
 
 
@@ -109,7 +110,7 @@ def main(args):
 
 if __name__ == '__main__':
     parse = argparse.ArgumentParser()
-    parse.add_argument("--batch-size", type=int, default=8, help="batch size")
+    parse.add_argument("--batch-size", type=int, default=16, help="batch size")
     parse.add_argument("--epochs", type=int, default=80, help="epochs")
     parse.add_argument("--init-epoch", type=int, default=0, help="init epoch")
     parse.add_argument("--lr", type=float, default=1e-3, help="learning rate")
