@@ -62,6 +62,41 @@ def cls_loss(predict_cls_logits, true_cls_ids, anchors_tag,
     return losses
 
 
+def cls_loss_v2(predict_cls_logits, true_cls_ids, anchors_tag,
+                negatives_per_positive, min_negatives_per_image):
+    """
+    分类损失
+    :param predict_cls_logits: 预测的anchors类别，[batch_size,num_anchors,num_classes]
+    :param true_cls_ids:实际的anchors类别，[batch_size,num_anchors]
+    :param anchors_tag: [batch_size,num_anchors]  1：正样本，-1：负样本，0: ignore
+    :param negatives_per_positive:
+    :param min_negatives_per_image:
+    :return:
+    """
+    # 交叉熵损失函数
+    losses = tf.nn.sparse_softmax_cross_entropy_with_logits(
+        labels=true_cls_ids, logits=predict_cls_logits)  # [batch_size,num_anchors]
+    # 正样本赋值-1000
+    positive_mask = tf.equal(anchors_tag, 1.)
+    losses_negatives = tf.where(positive_mask,
+                                tf.ones_like(losses) * -1000.,
+                                losses)
+    indices = tf.argsort(losses_negatives, axis=1, direction='DESCENDING')
+    orders = tf.argsort(indices, axis=1)
+
+    positive_num = tf.reduce_sum(tf.cast(positive_mask, tf.int32), axis=1)  # [num_anchors]
+    negative_num = tf.maximum(positive_num * negatives_per_positive, min_negatives_per_image)  # [num_anchors]
+
+    negative_mask = orders <= negative_num
+    mask = tf.logical_or(positive_mask, negative_mask)
+    losses = tf.gather_nd(losses, tf.where(mask))
+    batch_positive_num = tf.cast(tf.reduce_sum(positive_num), tf.float32)
+    losses = tf.cond(batch_positive_num > 0,
+                     true_fn=lambda: tf.reduce_sum(losses) / batch_positive_num,
+                     false_fn=lambda: tf.constant(0.))
+    return losses
+
+
 def smooth_l1_loss(y_true, y_predict, sigma=1.):
     """
     smooth L1损失函数；   0.5*sigma^2*x^2 if |x| <1/sigma^2 else |x|-0.5/sigma^2; x是 diff

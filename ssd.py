@@ -10,7 +10,7 @@ from typing import List
 from tensorflow.python.keras import layers, Model
 
 from layers.detect_boxes import DetectBox
-from layers.losses import regress_loss, cls_loss
+from layers.losses import regress_loss, cls_loss_v2
 from layers.target import SSDTarget
 from utils.anchor import generate_anchors, FeatureSpec
 
@@ -45,9 +45,9 @@ def ssd_model(feature_fn, cls_head_fn, rgr_head_fn, input_shape, num_classes, sp
         #                                                     deltas_list, anchors_tag_list])
         deltas, cls_ids, anchors_tag = SSDTarget(anchors, positive_iou_threshold, negative_iou_threshold,
                                                  name='ssd_target')([gt_boxes, gt_class_ids])
-        cls_losses = layers.Lambda(lambda x: cls_loss(*x,
-                                                      negatives_per_positive=negatives_per_positive,
-                                                      min_negatives_per_image=min_negatives_per_image),
+        cls_losses = layers.Lambda(lambda x: cls_loss_v2(*x,
+                                                         negatives_per_positive=negatives_per_positive,
+                                                         min_negatives_per_image=min_negatives_per_image),
                                    name='class_loss')([predict_logits, cls_ids, anchors_tag])
         rgr_losses = layers.Lambda(lambda x: regress_loss(*x),
                                    name='bbox_loss')([predict_deltas, deltas, anchors_tag])
