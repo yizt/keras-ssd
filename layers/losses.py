@@ -81,15 +81,16 @@ def cls_loss_v2(predict_cls_logits, true_cls_ids, anchors_tag,
     losses_negatives = tf.where(positive_mask,
                                 tf.ones_like(losses) * -1000.,
                                 losses)
-    indices = tf.argsort(losses_negatives, axis=1, direction='DESCENDING')
-    orders = tf.argsort(indices, axis=1)
+    indices = tf.argsort(losses_negatives, axis=1, direction='DESCENDING')  # [batch_size,num_anchors]
+    orders = tf.argsort(indices, axis=1)  # [batch_size,num_anchors]
 
-    positive_num = tf.reduce_sum(tf.cast(positive_mask, tf.int32), axis=1)  # [num_anchors]
-    negative_num = tf.maximum(positive_num * negatives_per_positive, min_negatives_per_image)  # [num_anchors]
+    positive_num = tf.reduce_sum(tf.cast(positive_mask, tf.int32), axis=1)  # [batch_size]
+    negative_num = tf.maximum(positive_num * negatives_per_positive, min_negatives_per_image)  # [batch_size]
 
-    negative_mask = orders <= negative_num
-    mask = tf.logical_or(positive_mask, negative_mask)
-    losses = tf.gather_nd(losses, tf.where(mask))
+    negative_mask = orders <= tf.expand_dims(negative_num, axis=1)  # [batch_size,num_anchors] vs [batch_size,1]
+    mask = tf.logical_or(positive_mask, negative_mask)  # [batch_size,num_anchors]
+    losses = tf.gather_nd(losses, tf.where(mask))  # [N]
+
     batch_positive_num = tf.cast(tf.reduce_sum(positive_num), tf.float32)
     losses = tf.cond(batch_positive_num > 0,
                      true_fn=lambda: tf.reduce_sum(losses) / batch_positive_num,
