@@ -5,10 +5,12 @@
  @Author  : yizuotian
  @Description    : 目标检测图像数据增广
 """
+import random
+
 import cv2
 import numpy as np
+
 from utils import box_utils
-import random
 
 
 def center_filter(gt_boxes, rect):
@@ -495,6 +497,7 @@ class ToPercentCoordinates(object):
 
     def __call__(self, image, gt_boxes=None, labels=None):
         height, width, _ = image.shape
+        gt_boxes = gt_boxes.copy()
         gt_boxes[:, [1, 3]] /= width
         gt_boxes[:, [0, 2]] /= height
 

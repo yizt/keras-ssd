@@ -51,8 +51,8 @@ class TrainAugmentation:
             PhotometricDistort(),
             RandomSampleCrop(),
             RandomHorizontalFlip(),
-            ToPercentCoordinates(),
             Resize(self.size, self.size),
+            ToPercentCoordinates(),
             SubtractMeans(self.mean),
             lambda img, boxes=None, labels=None: (img / std, boxes, labels)
             # ToTensor(),
