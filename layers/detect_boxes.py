@@ -5,8 +5,9 @@
  @Author  : yizuotian
  @Description    :
 """
-from tensorflow.python.keras import layers
 import tensorflow as tf
+from tensorflow.python.keras import layers
+
 from utils.tf_utils import pad_to_fixed_size
 
 
@@ -172,3 +173,15 @@ class DetectBox(layers.Layer):
         return [(input_shape[0][0], self.max_total_detections, 4 + 1),
                 (input_shape[0][0], self.max_total_detections, 1 + 1),
                 (input_shape[0][0], self.max_total_detections, 1 + 1)]
+
+    def get_config(self):
+        config = {
+            'anchors': self.anchors,
+            'score_threshold': self.score_threshold,
+            'iou_threshold': self.iou_threshold,
+            'max_detections_per_class': self.max_detections_per_class,
+            'max_total_detections': self.max_total_detections
+        }
+        base_config = super(DetectBox, self).get_config()
+        return dict(list(base_config.items()) + list(config.items()))
+
