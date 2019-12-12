@@ -12,7 +12,8 @@ import sys
 import tensorflow as tf
 import time
 from tensorflow.python.keras import backend
-from tensorflow.python.keras.callbacks import TensorBoard, ModelCheckpoint, LearningRateScheduler
+from tensorflow.python.keras.callbacks import TensorBoard, ModelCheckpoint, LearningRateScheduler, ReduceLROnPlateau, \
+    EarlyStopping
 
 from config import cfg
 from datasets.dataset import VocDataset
@@ -41,24 +42,27 @@ def lr_schedule(total_epoch, lr):
     return _lr_fn
 
 
-def get_call_back(epochs, lr):
+def get_call_back(lr, batch_size):
     """
     定义call back
     :return:
     """
-    checkpoint = ModelCheckpoint(filepath='/tmp/ssd-' + cfg.base_model_name + '.{epoch:03d}.h5',
+    text = '{}-{}-{}'.format(cfg.base_model_name, batch_size, lr)
+    checkpoint = ModelCheckpoint(filepath='/tmp/ssd-' + text + '.{epoch:03d}.h5',
                                  monitor='val_loss',
                                  verbose=1,
                                  save_best_only=True,
-                                 save_weights_only=True
-                                 # save_freq='epoch'
+                                 save_weights_only=True,
+                                 save_freq='epoch'
                                  )
+    reduce = ReduceLROnPlateau(monitor='val_loss', factor=0.2, min_delta=2e-3,
+                               patience=10, min_lr=1e-5)
+    stop = EarlyStopping(monitor='val_loss', patience=20)
+    # scheduler = LearningRateScheduler(lr_schedule(epochs, lr))
 
-    scheduler = LearningRateScheduler(lr_schedule(epochs, lr))
-
-    log = TensorBoard(log_dir='log-{}-{}'.format(cfg.base_model_name,
+    log = TensorBoard(log_dir='log-{}-{}'.format(text,
                                                  time.strftime("%Y%m%d", time.localtime())))
-    return [checkpoint, scheduler, log]
+    return [checkpoint, reduce, stop, log]
 
 
 def main(args):
@@ -78,7 +82,8 @@ def main(args):
     # 加载预训练模型
     init_epoch = args.init_epoch
     if args.init_epoch > 0:
-        m.load_weights('/tmp/ssd-{}.{:03d}.h5'.format(cfg.base_model_name, init_epoch), by_name=True)
+        text = '{}-{}-{}'.format(cfg.base_model_name, args.batch_size, args.lr)
+        m.load_weights('/tmp/ssd-{}.{:03d}.h5'.format(text, init_epoch), by_name=True)
     else:
         m.load_weights(cfg.pretrained_weight_path, by_name=True)
     # 生成器
@@ -89,7 +94,7 @@ def main(args):
                           args.batch_size,
                           cfg.max_gt_num)
     # 生成器
-    val_trans = EvalTransform(cfg.image_size, cfg.mean_pixel, cfg.std)
+    val_trans = TrainAugmentation(cfg.image_size, cfg.mean_pixel, cfg.std)
     val_gen = Generator(test_img_info,
                         val_trans,
                         cfg.input_shape,
@@ -107,13 +112,13 @@ def main(args):
                     validation_data=val_gen,
                     use_multiprocessing=False,
                     workers=10,
-                    callbacks=get_call_back(args.epochs, args.lr))
+                    callbacks=get_call_back(args.lr, args.batch_size))
 
 
 if __name__ == '__main__':
     parse = argparse.ArgumentParser()
     parse.add_argument("--batch-size", type=int, default=16, help="batch size")
-    parse.add_argument("--epochs", type=int, default=80, help="epochs")
+    parse.add_argument("--epochs", type=int, default=800, help="epochs")
     parse.add_argument("--init-epoch", type=int, default=0, help="init epoch")
     parse.add_argument("--lr", type=float, default=1e-3, help="learning rate")
     parse.add_argument("--momentum", type=float, default=0.9, help="momentum")
