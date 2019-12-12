@@ -41,7 +41,7 @@ def compile(keras_model, lr, momentum, clipnorm, weight_decay, loss_weights={}):
     # 增加L2正则化
     # 跳过批标准化层的 gamma 和 beta 权重
     reg_losses = [
-        regularizers.l2(weight_decay)(w) / tf.cast(tf.size(w), tf.float32)
+        regularizers.l2(weight_decay)(w)
         for w in keras_model.trainable_weights
         if 'gamma' not in w.name and 'beta' not in w.name]
     keras_model.add_loss(tf.add_n(reg_losses))
