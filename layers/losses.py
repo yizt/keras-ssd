@@ -93,7 +93,7 @@ def cls_loss_v2(predict_cls_logits, true_cls_ids, anchors_tag,
 
     batch_positive_num = tf.cast(tf.reduce_sum(positive_num), tf.float32)
     losses = tf.cond(batch_positive_num > 0,
-                     true_fn=lambda: tf.reduce_sum(losses) / batch_positive_num,
+                     true_fn=lambda: tf.reduce_mean(losses),
                      false_fn=lambda: tf.constant(0.))
     return losses
 
