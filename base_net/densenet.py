@@ -5,7 +5,9 @@
  @Author  : yizuotian
  @Description    :
 """
-from tensorflow.python.keras import layers, backend
+from tensorflow.python.keras import layers, backend, regularizers
+
+l2_reg = 5e-4
 
 
 def densenet_base(img_input,
@@ -14,7 +16,9 @@ def densenet_base(img_input,
     bn_axis = 3
 
     x = layers.ZeroPadding2D(padding=((3, 3), (3, 3)))(img_input)
-    x = layers.Conv2D(64, 7, strides=2, use_bias=False, name='conv1/conv')(x)
+    x = layers.Conv2D(64, 7, strides=2, use_bias=False,
+                      kernel_regularizer=regularizers.l2(l2_reg),
+                      name='conv1/conv')(x)
     x = layers.BatchNormalization(
         axis=bn_axis, epsilon=1.001e-5, name='conv1/bn')(x)
     x = layers.Activation('relu', name='conv1/relu')(x)
@@ -94,6 +98,7 @@ def transition_block(x, reduction, name):
     x = layers.Activation('relu', name=name + '_relu')(x)
     x = layers.Conv2D(int(backend.int_shape(x)[bn_axis] * reduction), 1,
                       use_bias=False,
+                      kernel_regularizer=regularizers.l2(l2_reg),
                       name=name + '_conv')(x)
     conv_before_pool = x
     x = layers.AveragePooling2D(2, strides=2, name=name + '_pool')(x)
@@ -118,6 +123,7 @@ def conv_block(x, growth_rate, name):
     x1 = layers.Activation('relu', name=name + '_0_relu')(x1)
     x1 = layers.Conv2D(4 * growth_rate, 1,
                        use_bias=False,
+                       kernel_regularizer=regularizers.l2(l2_reg),
                        name=name + '_1_conv')(x1)
     x1 = layers.BatchNormalization(axis=bn_axis, epsilon=1.001e-5,
                                    name=name + '_1_bn')(x1)
@@ -125,6 +131,7 @@ def conv_block(x, growth_rate, name):
     x1 = layers.Conv2D(growth_rate, 3,
                        padding='same',
                        use_bias=False,
+                       kernel_regularizer=regularizers.l2(l2_reg),
                        name=name + '_2_conv')(x1)
     x = layers.Concatenate(axis=bn_axis, name=name + '_concat')([x, x1])
     return x
@@ -137,6 +144,8 @@ def conv_unit(x, filters, kernel_size, stride=1, name=None):
                        padding='same',
                        use_bias=False,
                        strides=stride,
+                       kernel_initializer='he_normal',
+                       kernel_regularizer=regularizers.l2(l2_reg),
                        name=name + 'conv')(x)
     x1 = layers.BatchNormalization(axis=bn_axis, epsilon=1.001e-5,
                                    name=name + '_bn')(x1)
@@ -147,7 +156,13 @@ def conv_unit(x, filters, kernel_size, stride=1, name=None):
 def densenet_features(img_input):
     f1, f2 = densenet_base(img_input)
     f3, f4, f5, f6 = extra_features(f2)
-    return f1, f2, f3, f4, f5, f6
+    # m = Model(img_input, f2)
+    # for l in m.layers:
+    #     l.trainable = False
+    features = [layers.SpatialDropout2D(rate=0.8, name='f{}_dropout'.format(idx + 1))(x)
+                for idx, x in enumerate([f1, f2, f3, f4, f5, f6])]
+
+    return features
 
 
 def cls_headers(feature_list, num_anchors_list, num_classes):
@@ -156,6 +171,9 @@ def cls_headers(feature_list, num_anchors_list, num_classes):
         header = layers.Conv2D(num_anchors * num_classes,
                                kernel_size=3,
                                padding='same',
+                               use_bias=False,
+                               kernel_initializer='he_normal',
+                               kernel_regularizer=regularizers.l2(l2_reg),
                                name='cls_header_{}'.format(i))(feature)
         # 打平
         header = layers.Reshape(target_shape=(-1, num_classes),
@@ -173,6 +191,9 @@ def rgr_headers(feature_list, num_anchors_list):
         header = layers.Conv2D(num_anchors * 4,
                                kernel_size=3,
                                padding='same',
+                               use_bias=False,
+                               kernel_initializer='he_normal',
+                               kernel_regularizer=regularizers.l2(l2_reg),
                                name='rgr_header_{}'.format(i))(feature)
         # 打平
         header = layers.Reshape(target_shape=(-1, 4),
@@ -187,6 +208,6 @@ if __name__ == '__main__':
     from tensorflow.python.keras import Input, Model
 
     im_input = Input(shape=(300, 300, 3))
-    o = densenet_base(im_input)
+    o = densenet_features(im_input)
     m = Model(im_input, list(o))
     m.summary()
