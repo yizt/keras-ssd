@@ -6,7 +6,9 @@
  @Description    :
 """
 from keras_applications import correct_pad
-from tensorflow.python.keras import layers, Model, Input, backend
+from tensorflow.python.keras import layers, Model, Input, backend, regularizers
+
+l2_reg = 5e-4
 
 
 def _make_divisible(v, divisor, min_value=None):
@@ -40,6 +42,7 @@ def mobilenet_v2_base(img_input,
                       strides=(2, 2),
                       padding='valid',
                       use_bias=False,
+                      kernel_regularizer=regularizers.l2(l2_reg),
                       name='Conv1')(x)
     x = layers.BatchNormalization(axis=channel_axis,
                                   epsilon=1e-3,
@@ -89,6 +92,10 @@ def mobilenet_v2_base(img_input,
                             expansion=6, block_id=16)
     feature2 = x
 
+    # m = Model(img_input, x)
+    # for l in m.layers:
+    #     l.trainable = False
+
     return feature1, feature2
 
 
@@ -116,7 +123,9 @@ def extra_features(inputs, alpha):
 def mobilenet_v2_features(img_input, alpha=1.):
     f1, f2 = mobilenet_v2_base(img_input, alpha)
     f3, f4, f5, f6 = extra_features(f2, alpha)
-    return f1, f2, f3, f4, f5, f6
+    features = [layers.SpatialDropout2D(rate=0.5, name='f{}_dropout'.format(idx + 1))(x)
+                for idx, x in enumerate([f1, f2, f3, f4, f5, f6])]
+    return features
 
 
 def cls_headers(feature_list, num_anchors_list, num_classes):
@@ -165,6 +174,7 @@ def seperable_conv2d(x, filters, name, kernel_size=1, stride=1, padding='same'):
                                activation=None,
                                use_bias=False,
                                padding=padding,
+                               depthwise_regularizer=regularizers.l2(l2_reg),
                                name=prefix + 'depthwise')(x)
     x = layers.BatchNormalization(axis=channel_axis,
                                   epsilon=1e-3,
@@ -179,6 +189,7 @@ def seperable_conv2d(x, filters, name, kernel_size=1, stride=1, padding='same'):
                       padding='same',
                       use_bias=False,
                       activation=None,
+                      kernel_regularizer=regularizers.l2(l2_reg),
                       name=prefix + 'project')(x)
     return x
 
@@ -199,6 +210,7 @@ def _inverted_res_block(inputs, expansion, stride, alpha, filters, block_id):
                           padding='same',
                           use_bias=False,
                           activation=None,
+                          kernel_regularizer=regularizers.l2(l2_reg),
                           name=prefix + 'expand')(x)
         x = layers.BatchNormalization(axis=channel_axis,
                                       epsilon=1e-3,
@@ -216,6 +228,7 @@ def _inverted_res_block(inputs, expansion, stride, alpha, filters, block_id):
                                strides=stride,
                                activation=None,
                                use_bias=False,
+                               depthwise_regularizer=regularizers.l2(l2_reg),
                                padding='same' if stride == 1 else 'valid',
                                name=prefix + 'depthwise')(x)
     x = layers.BatchNormalization(axis=channel_axis,
@@ -231,6 +244,7 @@ def _inverted_res_block(inputs, expansion, stride, alpha, filters, block_id):
                       padding='same',
                       use_bias=False,
                       activation=None,
+                      kernel_regularizer=regularizers.l2(l2_reg),
                       name=prefix + 'project')(x)
     x = layers.BatchNormalization(axis=channel_axis,
                                   epsilon=1e-3,
