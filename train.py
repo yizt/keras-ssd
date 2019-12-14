@@ -11,16 +11,15 @@ import sys
 
 import tensorflow as tf
 import time
-from tensorflow.python.keras import backend
-from tensorflow.python.keras.callbacks import TensorBoard, ModelCheckpoint, LearningRateScheduler, ReduceLROnPlateau, \
+from tensorflow.python.keras import backend, optimizers
+from tensorflow.python.keras.callbacks import TensorBoard, ModelCheckpoint, ReduceLROnPlateau, \
     EarlyStopping
 
 from config import cfg
 from datasets.dataset import VocDataset
 from ssd import ssd_model
-from utils import model_utils
 from utils.generator import Generator
-from utils.preprocess import TrainAugmentation, EvalTransform
+from utils.preprocess import TrainAugmentation
 
 
 def set_gpu_growth():
@@ -100,8 +99,13 @@ def main(args):
                         cfg.input_shape,
                         args.batch_size,
                         cfg.max_gt_num)
-    model_utils.compile(m, args.lr, args.momentum, args.clipnorm, args.weight_decay,
-                        cfg.loss_weights)
+    optimizer = optimizers.SGD(
+        lr=args.lr, momentum=args.momentum,
+        clipnorm=args.clipnorm)
+    m.compile(optimizer=optimizer,
+              loss={"class_loss": lambda y_true, y_pred: y_pred,
+                    "bbox_loss": lambda y_true, y_pred: y_pred})
+
     m.summary()
 
     # 训练
@@ -120,7 +124,7 @@ if __name__ == '__main__':
     parse.add_argument("--batch-size", type=int, default=16, help="batch size")
     parse.add_argument("--epochs", type=int, default=800, help="epochs")
     parse.add_argument("--init-epoch", type=int, default=0, help="init epoch")
-    parse.add_argument("--lr", type=float, default=1e-3, help="learning rate")
+    parse.add_argument("--lr", type=float, default=1e-2, help="learning rate")
     parse.add_argument("--momentum", type=float, default=0.9, help="momentum")
     parse.add_argument("--weight-decay", type=float, default=5e-4, help="weight decay")
     parse.add_argument("--clipnorm", type=float, default=1.,
